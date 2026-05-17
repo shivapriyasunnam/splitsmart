@@ -2,8 +2,10 @@ import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {Text, StyleSheet} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Colors, Typography} from '../theme';
 
+import {HomeScreen} from '../../features/home/screens/HomeScreen';
 import {ExpensesScreen} from '../../features/expenses/screens/ExpensesScreen';
 import {AddEditExpenseScreen} from '../../features/expenses/screens/AddEditExpenseScreen';
 import {BalancesScreen} from '../../features/balances/screens/BalancesScreen';
@@ -12,7 +14,35 @@ import {InsightsScreen} from '../../features/insights/screens/InsightsScreen';
 import {SettingsScreen} from '../../features/settings/screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
+const HomeStack = createNativeStackNavigator();
 const ExpensesStack = createNativeStackNavigator();
+
+function HomeNavigator() {
+  return (
+    <HomeStack.Navigator
+      screenOptions={{
+        headerStyle: {backgroundColor: Colors.surface},
+        headerTitleStyle: Typography.h3,
+        headerTintColor: Colors.primary,
+      }}>
+      <HomeStack.Screen
+        name="HomeMain"
+        component={HomeScreen}
+        options={{headerShown: false}}
+      />
+      <HomeStack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{title: 'Settings'}}
+      />
+      <HomeStack.Screen
+        name="AddExpense"
+        component={AddEditExpenseScreen}
+        options={{title: 'Add Expense', headerStyle: {backgroundColor: Colors.surface}, headerTitleStyle: Typography.h3, headerTintColor: Colors.primary}}
+      />
+    </HomeStack.Navigator>
+  );
+}
 
 function ExpensesNavigator() {
   return (
@@ -59,16 +89,28 @@ function TabIcon({focused, icon}: TabIconProps) {
 }
 
 export function AppNavigator() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {height: 60 + insets.bottom, paddingBottom: insets.bottom + 4},
+        ],
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarLabelStyle: styles.tabLabel,
         headerStyle: {backgroundColor: Colors.surface},
         headerTitleStyle: Typography.h3,
       }}>
+      <Tab.Screen
+        name="Home"
+        component={HomeNavigator}
+        options={{
+          headerShown: false,
+          tabBarIcon: ({focused}) => <TabIcon focused={focused} icon="🏠" />,
+        }}
+      />
       <Tab.Screen
         name="Expenses"
         component={ExpensesNavigator}
@@ -101,14 +143,6 @@ export function AppNavigator() {
           title: 'Insights',
         }}
       />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarIcon: ({focused}) => <TabIcon focused={focused} icon="⚙️" />,
-          title: 'Settings',
-        }}
-      />
     </Tab.Navigator>
   );
 }
@@ -117,8 +151,6 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Colors.surface,
     borderTopColor: Colors.border,
-    height: 60,
-    paddingBottom: 8,
     paddingTop: 4,
   },
   tabLabel: {
@@ -129,3 +161,4 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
 });
+

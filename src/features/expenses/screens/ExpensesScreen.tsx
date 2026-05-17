@@ -6,11 +6,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ScrollView,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
-import {Card, EmptyState, LoadingState, Chip, Button} from '../../../components';
+import {Card, EmptyState, LoadingState, Button} from '../../../components';
 import {Colors, Typography, Spacing, BorderRadius, Shadows} from '../../../app/theme';
 import {useAppStore} from '../../../app/providers/store';
 import {getExpenses, softDeleteExpense, getMonthlyTotal} from '../../../db/repositories/expenseRepository';
@@ -26,8 +25,6 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format('YYYY-MM'));
-  const [filterCategory, setFilterCategory] = useState<string | null>(null);
-  const [filterMember, setFilterMember] = useState<string | null>(null);
   const [monthlyTotal, setMonthlyTotal] = useState(0);
 
   const loadExpenses = useCallback(async () => {
@@ -35,8 +32,6 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
     try {
       const data = await getExpenses({
         monthKey: selectedMonth,
-        categoryId: filterCategory ?? undefined,
-        paidByMemberId: filterMember ?? undefined,
       });
       setExpenses(data);
       const total = await getMonthlyTotal(selectedMonth);
@@ -44,7 +39,7 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, filterCategory, filterMember]);
+  }, [selectedMonth]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', loadExpenses);
@@ -136,48 +131,6 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* Filter Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}>
-        <Chip
-          label="All"
-          selected={!filterCategory && !filterMember}
-          onPress={() => {
-            setFilterCategory(null);
-            setFilterMember(null);
-          }}
-        />
-        <Chip
-          label={profile?.myName ?? 'Me'}
-          selected={filterMember === myMember?.id}
-          onPress={() =>
-            setFilterMember(filterMember === myMember?.id ? null : myMember?.id ?? null)
-          }
-        />
-        <Chip
-          label={profile?.partnerName ?? 'Partner'}
-          selected={filterMember === partnerMember?.id}
-          onPress={() =>
-            setFilterMember(
-              filterMember === partnerMember?.id ? null : partnerMember?.id ?? null,
-            )
-          }
-        />
-        {categories.map(cat => (
-          <Chip
-            key={cat.id}
-            label={cat.name}
-            selected={filterCategory === cat.id}
-            onPress={() =>
-              setFilterCategory(filterCategory === cat.id ? null : cat.id)
-            }
-            color={cat.color}
-          />
-        ))}
-      </ScrollView>
 
       {/* Monthly Total */}
       <Card style={styles.totalCard} padded={false}>
