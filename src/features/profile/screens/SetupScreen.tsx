@@ -8,13 +8,13 @@ import {
   Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {Button, Input, Card} from '../../components';
-import {Colors, Typography, Spacing, BorderRadius} from '../../app/theme';
-import {useAppStore} from '../../app/providers/store';
-import {setConfig} from '../../db/repositories/configRepository';
-import {seedMembersFromProfile} from '../../db/repositories/memberRepository';
-import {Profile, MemberRole} from '../../types';
-import {hashPassphrase} from '../../features/sync/crypto/encryptionService';
+import {Button, Input, Card} from '../../../components';
+import {Colors, Typography, Spacing, BorderRadius} from '../../../app/theme';
+import {useAppStore} from '../../../app/providers/store';
+import {setConfig} from '../../../db/repositories/configRepository';
+import {seedMembersFromProfile} from '../../../db/repositories/memberRepository';
+import {Profile, MemberRole} from '../../../types';
+import {hashPassphrase} from '../../sync/crypto/encryptionService';
 
 export const SetupScreen: React.FC = () => {
   const {setProfile, setMyMember, setPartnerMember, setSetupComplete} = useAppStore();
@@ -31,6 +31,7 @@ export const SetupScreen: React.FC = () => {
   const currencies = ['INR', 'USD', 'EUR', 'GBP', 'SGD', 'AED'];
 
   async function handleComplete() {
+    console.log('[Setup] handleComplete called', {myName, partnerName, passphraseLen: passphrase.length});
     if (!myName.trim()) {
       Alert.alert('Required', 'Please enter your name.');
       return;
@@ -50,6 +51,7 @@ export const SetupScreen: React.FC = () => {
 
     setLoading(true);
     try {
+      console.log('[Setup] saving profile...');
       const profile: Profile = {myName: myName.trim(), partnerName: partnerName.trim(), myRole, currency};
       await setConfig('profile', profile);
 
@@ -64,8 +66,10 @@ export const SetupScreen: React.FC = () => {
       setProfile(profile);
       setMyMember(myMember);
       setPartnerMember(partnerMember);
+      console.log('[Setup] calling setSetupComplete(true)');
       setSetupComplete(true);
     } catch (err: any) {
+      console.log('[Setup] ERROR', err);
       Alert.alert('Error', err.message ?? 'Setup failed. Please try again.');
     } finally {
       setLoading(false);

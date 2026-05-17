@@ -11,7 +11,7 @@ import {
   TouchableOpacityProps,
   TextInputProps,
 } from 'react-native';
-import {Colors, Spacing, BorderRadius, Typography, Shadows} from '../theme';
+import {Colors, Spacing, BorderRadius, Typography, Shadows} from '../app/theme';
 
 // ─── Button ─────────────────────────────────────────────────────────────────
 
