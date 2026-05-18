@@ -201,6 +201,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     borderRadius: BorderRadius.md,
     backgroundColor: Colors.primary,
+    marginTop: Spacing.sm,
     ...Shadows.md,
   },
   totalContent: {

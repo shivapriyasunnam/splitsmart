@@ -427,7 +427,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
 
   if (section === 'rules') {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.sectionHeader}>
           <TouchableOpacity onPress={() => setSection('main')}>
             <Text style={styles.backLink}>← Settings</Text>
@@ -534,7 +534,14 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
   // ─── Main Settings ────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.sectionHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backLink}>‹ Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Settings</Text>
+        <View style={styles.headerSpacer} />
+      </View>
       <ScrollView contentContainerStyle={styles.content}>
         {/* Profile Section */}
         <Text style={styles.firstLabel}>PROFILE</Text>
@@ -598,6 +605,106 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
                 onPress={() => setCurrencyModal(false)}
                 style={{marginTop: Spacing.md}}
               />
+            </View>
+          </View>
+        </Modal>
+
+
+        {/* Bluetooth Sync Section */}
+        <Text style={styles.label}>BLUETOOTH SYNC</Text>
+        <Card style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.settingKey}>Bluetooth</Text>
+            <Badge
+              label={btEnabled === null ? '—' : btEnabled ? 'On' : 'Off'}
+              color={btEnabled ? Colors.success : Colors.textMuted}
+            />
+          </View>
+          <Divider />
+          <View style={styles.row}>
+            <Text style={styles.settingKey}>Partner Device</Text>
+            <Text style={styles.settingValue} numberOfLines={1}>
+              {btPeerName ?? 'Not selected'}
+            </Text>
+          </View>
+          <Divider />
+          <Button
+            title="Pair / Choose Device"
+            variant="secondary"
+            size="sm"
+            onPress={openDevicePicker}
+            style={styles.syncBtn}
+          />
+          <Button
+            title="Send via Bluetooth"
+            onPress={handleBluetoothSend}
+            loading={btSending}
+            disabled={btSending || btReceiving || !btPeerAddress}
+            style={styles.syncBtn}
+          />
+          <Button
+            title="Receive via Bluetooth"
+            variant="secondary"
+            onPress={handleBluetoothReceive}
+            loading={btReceiving}
+            disabled={btSending || btReceiving}
+            style={styles.syncBtn}
+          />
+          <Divider />
+          <View style={styles.row}>
+            <Text style={styles.settingKey}>Last Transfer</Text>
+            <Text style={styles.settingValue}>
+              {btLastTransfer ? dayjs(btLastTransfer).format('D MMM HH:mm') : 'Never'}
+            </Text>
+          </View>
+          {btLastError && (
+            <>
+              <Divider />
+              <Text style={styles.errorText}>BT error: {btLastError}</Text>
+            </>
+          )}
+        </Card>
+
+        {/* Device Picker Modal */}
+        <Modal visible={btDeviceModal} animationType="slide" transparent>
+          <View style={styles.overlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Choose Partner Device</Text>
+              {btDiscovering && (
+                <Text style={[styles.settingHint, {marginBottom: Spacing.sm}]}>
+                  Scanning…
+                </Text>
+              )}
+              <ScrollView style={{maxHeight: 300}}>
+                {btDevices.length === 0 && !btDiscovering && (
+                  <Text style={styles.emptyText}>
+                    No paired devices found. Make sure your partner's device is discoverable.
+                  </Text>
+                )}
+                {btDevices.map(d => (
+                  <TouchableOpacity
+                    key={d.address}
+                    style={styles.deviceRow}
+                    onPress={() => selectDevice(d)}>
+                    <Text style={styles.deviceName}>{d.name || 'Unknown Device'}</Text>
+                    <Text style={styles.deviceAddress}>{d.address}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={[styles.modalButtons, {marginTop: Spacing.md}]}>
+                <Button
+                  title="Discover More"
+                  variant="secondary"
+                  onPress={discoverMoreDevices}
+                  loading={btDiscovering}
+                  style={styles.modalBtn}
+                />
+                <Button
+                  title="Cancel"
+                  onPress={() => setBtDeviceModal(false)}
+                  style={styles.modalBtn}
+                />
+              </View>
             </View>
           </View>
         </Modal>
@@ -712,105 +819,6 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
           )}
         </Card>
 
-        {/* Bluetooth Sync Section */}
-        <Text style={styles.label}>BLUETOOTH SYNC</Text>
-        <Card style={styles.card}>
-          <View style={styles.row}>
-            <Text style={styles.settingKey}>Bluetooth</Text>
-            <Badge
-              label={btEnabled === null ? '—' : btEnabled ? 'On' : 'Off'}
-              color={btEnabled ? Colors.success : Colors.textMuted}
-            />
-          </View>
-          <Divider />
-          <View style={styles.row}>
-            <Text style={styles.settingKey}>Partner Device</Text>
-            <Text style={styles.settingValue} numberOfLines={1}>
-              {btPeerName ?? 'Not selected'}
-            </Text>
-          </View>
-          <Divider />
-          <Button
-            title="Pair / Choose Device"
-            variant="secondary"
-            size="sm"
-            onPress={openDevicePicker}
-            style={styles.syncBtn}
-          />
-          <Button
-            title="Send via Bluetooth"
-            onPress={handleBluetoothSend}
-            loading={btSending}
-            disabled={btSending || btReceiving || !btPeerAddress}
-            style={styles.syncBtn}
-          />
-          <Button
-            title="Receive via Bluetooth"
-            variant="secondary"
-            onPress={handleBluetoothReceive}
-            loading={btReceiving}
-            disabled={btSending || btReceiving}
-            style={styles.syncBtn}
-          />
-          <Divider />
-          <View style={styles.row}>
-            <Text style={styles.settingKey}>Last Transfer</Text>
-            <Text style={styles.settingValue}>
-              {btLastTransfer ? dayjs(btLastTransfer).format('D MMM HH:mm') : 'Never'}
-            </Text>
-          </View>
-          {btLastError && (
-            <>
-              <Divider />
-              <Text style={styles.errorText}>BT error: {btLastError}</Text>
-            </>
-          )}
-        </Card>
-
-        {/* Device Picker Modal */}
-        <Modal visible={btDeviceModal} animationType="slide" transparent>
-          <View style={styles.overlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Choose Partner Device</Text>
-              {btDiscovering && (
-                <Text style={[styles.settingHint, {marginBottom: Spacing.sm}]}>
-                  Scanning…
-                </Text>
-              )}
-              <ScrollView style={{maxHeight: 300}}>
-                {btDevices.length === 0 && !btDiscovering && (
-                  <Text style={styles.emptyText}>
-                    No paired devices found. Make sure your partner's device is discoverable.
-                  </Text>
-                )}
-                {btDevices.map(d => (
-                  <TouchableOpacity
-                    key={d.address}
-                    style={styles.deviceRow}
-                    onPress={() => selectDevice(d)}>
-                    <Text style={styles.deviceName}>{d.name || 'Unknown Device'}</Text>
-                    <Text style={styles.deviceAddress}>{d.address}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <View style={[styles.modalButtons, {marginTop: Spacing.md}]}>
-                <Button
-                  title="Discover More"
-                  variant="secondary"
-                  onPress={discoverMoreDevices}
-                  loading={btDiscovering}
-                  style={styles.modalBtn}
-                />
-                <Button
-                  title="Cancel"
-                  onPress={() => setBtDeviceModal(false)}
-                  style={styles.modalBtn}
-                />
-              </View>
-            </View>
-          </View>
-        </Modal>
-
         {/* Device Info */}
         <Text style={styles.label}>DEVICE</Text>
         <Card style={styles.card}>
@@ -869,6 +877,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {...Typography.h3},
   backLink: {color: Colors.primary, fontSize: 15},
+  headerSpacer: {width: 60},
   rulesList: {padding: Spacing.md, paddingBottom: Spacing.xl},
   ruleCard: {marginBottom: Spacing.sm, ...Shadows.sm},
   ruleHeader: {flexDirection: 'row', alignItems: 'center'},

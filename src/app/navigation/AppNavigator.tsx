@@ -34,7 +34,7 @@ function HomeNavigator() {
       <HomeStack.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{title: 'Settings'}}
+        options={{headerShown: false}}
       />
       <HomeStack.Screen
         name="AddExpense"
@@ -52,11 +52,12 @@ function ExpensesNavigator() {
         headerStyle: {backgroundColor: Colors.surface},
         headerTitleStyle: Typography.h3,
         headerTintColor: Colors.primary,
+        headerShadowVisible: false,
       }}>
       <ExpensesStack.Screen
         name="ExpensesList"
         component={ExpensesScreen}
-        options={{title: 'Expenses'}}
+        options={{headerShown: false}}
       />
       <ExpensesStack.Screen
         name="AddExpense"
@@ -113,30 +114,30 @@ export function AppNavigator() {
         name="Balances"
         component={BalancesScreen}
         options={{
+          headerShown: false,
           tabBarIcon: ({color, size}) => (
             <FontAwesome name="balance-scale-left" size={size - 2} color={color} />
           ),
-          title: 'Balances',
         }}
       />
       <Tab.Screen
         name="Budgets"
         component={BudgetsScreen}
         options={{
+          headerShown: false,
           tabBarIcon: ({color, size}) => (
             <FontAwesome name="wallet" size={size - 2} color={color} />
           ),
-          title: 'Budgets',
         }}
       />
       <Tab.Screen
         name="Insights"
         component={InsightsScreen}
         options={{
+          headerShown: false,
           tabBarIcon: ({color, size}) => (
             <FontAwesome name="chart-bar" size={size - 2} color={color} />
           ),
-          title: 'Insights',
         }}
       />
     </Tab.Navigator>
