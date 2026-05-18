@@ -9,6 +9,8 @@ import {
   FlatList,
   Modal,
   Switch,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
@@ -34,6 +36,17 @@ import {validateRegexPattern} from '../../categories/services/categorizationServ
 import {CategoryRule, Category} from '../../../types';
 import {formatAmount} from '../../balances/services/balanceService';
 import {hashPassphrase} from '../../sync/crypto/encryptionService';
+import {
+  getBluetoothSyncConfig,
+  setPeerDevice,
+  getBondedDevices,
+  discoverDevices,
+  requestBluetoothEnabled,
+  sendViaBluetooth,
+  receiveViaBluetooth,
+  cancelBluetoothAccept,
+  BluetoothDeviceInfo,
+} from '../../sync/services/bluetoothSyncService';
 
 const GOOGLE_WEB_CLIENT_ID = '';  // Configure in app.config or settings
 
@@ -55,6 +68,18 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
   const [currentRule, setCurrentRule] = useState<Partial<CategoryRule> | null>(null);
   const [partnerFolderId, setPartnerFolderId] = useState('');
 
+  // ─── Bluetooth state ─────────────────────────────────────────────────────
+  const [btEnabled, setBtEnabled] = useState<boolean | null>(null);
+  const [btPeerAddress, setBtPeerAddress] = useState<string | null>(null);
+  const [btPeerName, setBtPeerName] = useState<string | null>(null);
+  const [btLastTransfer, setBtLastTransfer] = useState<string | null>(null);
+  const [btLastError, setBtLastError] = useState<string | null>(null);
+  const [btSending, setBtSending] = useState(false);
+  const [btReceiving, setBtReceiving] = useState(false);
+  const [btDeviceModal, setBtDeviceModal] = useState(false);
+  const [btDevices, setBtDevices] = useState<BluetoothDeviceInfo[]>([]);
+  const [btDiscovering, setBtDiscovering] = useState(false);
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,6 +92,21 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
     setCats(c);
     const pf = await getConfig<string>('partner_folder_id');
     if (pf) setPartnerFolderId(pf);
+
+    // Load Bluetooth config
+    try {
+      const RNBluetoothClassic = require('react-native-bluetooth-classic').default;
+      const enabled = await RNBluetoothClassic.isBluetoothEnabled();
+      setBtEnabled(enabled);
+    } catch {
+      setBtEnabled(false);
+    }
+    const btCfg = await getBluetoothSyncConfig();
+    setBtPeerAddress(btCfg.bondedPeerAddress);
+    setBtPeerName(btCfg.bondedPeerName);
+    setBtLastTransfer(btCfg.lastTransferAt);
+    const syncStatus = await getConfig<any>('sync_status');
+    setBtLastError(syncStatus?.lastBluetoothError ?? null);
   }
 
   async function connectDrive() {
@@ -145,6 +185,151 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
       }
     } finally {
       setSyncing(false);
+    }
+  }
+
+  // ─── Bluetooth Handlers ───────────────────────────────────────────────────
+
+  async function requestBtPermissionsAndroid(): Promise<boolean> {
+    if (Platform.OS !== 'android') return true;
+    // Android 12+ uses BLUETOOTH_SCAN + BLUETOOTH_CONNECT
+    if (Platform.Version >= 31) {
+      const results = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+      ]);
+      return (
+        results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === 'granted' &&
+        results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === 'granted'
+      );
+    }
+    // Android < 12 uses ACCESS_FINE_LOCATION for discovery
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    );
+    return granted === 'granted';
+  }
+
+  async function openDevicePicker() {
+    const permitted = await requestBtPermissionsAndroid();
+    if (!permitted) {
+      Alert.alert('Permission Required', 'Bluetooth permissions are required to find nearby devices.');
+      return;
+    }
+
+    let enabled = btEnabled;
+    if (!enabled) {
+      try {
+        const didEnable = await requestBluetoothEnabled();
+        setBtEnabled(didEnable);
+        enabled = didEnable;
+      } catch {}
+    }
+    if (!enabled) {
+      Alert.alert('Bluetooth Off', 'Please enable Bluetooth to find devices.');
+      return;
+    }
+
+    setBtDeviceModal(true);
+    setBtDiscovering(true);
+    try {
+      const bonded = await getBondedDevices();
+      setBtDevices(bonded);
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'Failed to list devices.');
+    } finally {
+      setBtDiscovering(false);
+    }
+  }
+
+  async function discoverMoreDevices() {
+    setBtDiscovering(true);
+    try {
+      const found = await discoverDevices();
+      setBtDevices(prev => {
+        const existing = new Set(prev.map(d => d.address));
+        const merged = [...prev];
+        for (const d of found) {
+          if (!existing.has(d.address)) merged.push(d);
+        }
+        return merged;
+      });
+    } catch (err: any) {
+      Alert.alert('Discovery Error', err.message ?? 'Discovery failed.');
+    } finally {
+      setBtDiscovering(false);
+    }
+  }
+
+  async function selectDevice(device: BluetoothDeviceInfo) {
+    await setPeerDevice(device);
+    setBtPeerAddress(device.address);
+    setBtPeerName(device.name);
+    setBtDeviceModal(false);
+  }
+
+  async function handleBluetoothSend() {
+    const permitted = await requestBtPermissionsAndroid();
+    if (!permitted) {
+      Alert.alert('Permission Required', 'Bluetooth permissions are needed to send.');
+      return;
+    }
+    setBtSending(true);
+    try {
+      const result = await sendViaBluetooth();
+      if (result.success && result.noChanges) {
+        Alert.alert('No Changes', 'No new local changes to send via Bluetooth.');
+      } else if (result.success) {
+        const cfg = await getBluetoothSyncConfig();
+        setBtLastTransfer(cfg.lastTransferAt);
+        setBtLastError(null);
+        Alert.alert('Sent', 'Changes sent and acknowledged by partner device.');
+      } else {
+        setBtLastError(result.error ?? null);
+        Alert.alert('Send Failed', result.error ?? 'Bluetooth send failed.');
+      }
+    } finally {
+      setBtSending(false);
+    }
+  }
+
+  async function handleBluetoothReceive() {
+    const permitted = await requestBtPermissionsAndroid();
+    if (!permitted) {
+      Alert.alert('Permission Required', 'Bluetooth permissions are needed to receive.');
+      return;
+    }
+    Alert.alert(
+      'Waiting for sender…',
+      'This device is now listening. Ask your partner to send from their device. Tap Cancel to stop.',
+      [
+        {
+          text: 'Cancel',
+          onPress: () => {
+            cancelBluetoothAccept().catch(() => {});
+            setBtReceiving(false);
+          },
+        },
+      ],
+      {cancelable: false},
+    );
+    setBtReceiving(true);
+    try {
+      const result = await receiveViaBluetooth(120_000);
+      if (result.success && result.duplicate) {
+        Alert.alert('Already Applied', 'This package was already imported — no duplicates created.');
+      } else if (result.success) {
+        setBtLastTransfer(dayjs().toISOString());
+        setBtLastError(null);
+        const s = await getConfig<any>('sync_status');
+        if (s) store.setSyncStatus(s);
+        Alert.alert('Received', `Imported ${result.imported ?? 0} package(s) from partner.`);
+      } else {
+        setBtLastError(result.error ?? null);
+        Alert.alert('Receive Failed', result.error ?? 'Bluetooth receive failed.');
+      }
+    } finally {
+      setBtReceiving(false);
     }
   }
 
@@ -458,6 +643,105 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
           )}
         </Card>
 
+        {/* Bluetooth Sync Section */}
+        <Text style={styles.label}>BLUETOOTH SYNC</Text>
+        <Card style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.settingKey}>Bluetooth</Text>
+            <Badge
+              label={btEnabled === null ? '—' : btEnabled ? 'On' : 'Off'}
+              color={btEnabled ? Colors.success : Colors.textMuted}
+            />
+          </View>
+          <Divider />
+          <View style={styles.row}>
+            <Text style={styles.settingKey}>Partner Device</Text>
+            <Text style={styles.settingValue} numberOfLines={1}>
+              {btPeerName ?? 'Not selected'}
+            </Text>
+          </View>
+          <Divider />
+          <Button
+            title="Pair / Choose Device"
+            variant="secondary"
+            size="sm"
+            onPress={openDevicePicker}
+            style={styles.syncBtn}
+          />
+          <Button
+            title="Send via Bluetooth"
+            onPress={handleBluetoothSend}
+            loading={btSending}
+            disabled={btSending || btReceiving || !btPeerAddress}
+            style={styles.syncBtn}
+          />
+          <Button
+            title="Receive via Bluetooth"
+            variant="secondary"
+            onPress={handleBluetoothReceive}
+            loading={btReceiving}
+            disabled={btSending || btReceiving}
+            style={styles.syncBtn}
+          />
+          <Divider />
+          <View style={styles.row}>
+            <Text style={styles.settingKey}>Last Transfer</Text>
+            <Text style={styles.settingValue}>
+              {btLastTransfer ? dayjs(btLastTransfer).format('D MMM HH:mm') : 'Never'}
+            </Text>
+          </View>
+          {btLastError && (
+            <>
+              <Divider />
+              <Text style={styles.errorText}>BT error: {btLastError}</Text>
+            </>
+          )}
+        </Card>
+
+        {/* Device Picker Modal */}
+        <Modal visible={btDeviceModal} animationType="slide" transparent>
+          <View style={styles.overlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Choose Partner Device</Text>
+              {btDiscovering && (
+                <Text style={[styles.settingHint, {marginBottom: Spacing.sm}]}>
+                  Scanning…
+                </Text>
+              )}
+              <ScrollView style={{maxHeight: 300}}>
+                {btDevices.length === 0 && !btDiscovering && (
+                  <Text style={styles.emptyText}>
+                    No paired devices found. Make sure your partner's device is discoverable.
+                  </Text>
+                )}
+                {btDevices.map(d => (
+                  <TouchableOpacity
+                    key={d.address}
+                    style={styles.deviceRow}
+                    onPress={() => selectDevice(d)}>
+                    <Text style={styles.deviceName}>{d.name || 'Unknown Device'}</Text>
+                    <Text style={styles.deviceAddress}>{d.address}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={[styles.modalButtons, {marginTop: Spacing.md}]}>
+                <Button
+                  title="Discover More"
+                  variant="secondary"
+                  onPress={discoverMoreDevices}
+                  loading={btDiscovering}
+                  style={styles.modalBtn}
+                />
+                <Button
+                  title="Cancel"
+                  onPress={() => setBtDeviceModal(false)}
+                  style={styles.modalBtn}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* Device Info */}
         <Text style={styles.label}>DEVICE</Text>
         <Card style={styles.card}>
@@ -550,4 +834,11 @@ const styles = StyleSheet.create({
   switchLabel: {...Typography.body},
   modalButtons: {flexDirection: 'row', gap: Spacing.sm},
   modalBtn: {flex: 1},
+  deviceRow: {
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  deviceName: {...Typography.bodyMedium},
+  deviceAddress: {...Typography.caption, color: Colors.textMuted},
 });

@@ -4,6 +4,7 @@ import {
   DeviceConfig,
   DriveConfig,
   SyncStatus,
+  BluetoothSyncConfig,
   Member,
   Category,
 } from '../../types';
@@ -24,6 +25,9 @@ interface AppState {
   // Drive
   driveConfig: DriveConfig;
 
+  // Bluetooth sync
+  bluetoothSyncConfig: BluetoothSyncConfig;
+
   // Sync status
   syncStatus: SyncStatus;
 
@@ -38,6 +42,7 @@ interface AppState {
   setPartnerMember: (m: Member) => void;
   setCategories: (cats: Category[]) => void;
   setDriveConfig: (d: Partial<DriveConfig>) => void;
+  setBluetoothSyncConfig: (b: Partial<BluetoothSyncConfig>) => void;
   setSyncStatus: (s: Partial<SyncStatus>) => void;
   setInitializing: (v: boolean) => void;
 }
@@ -56,6 +61,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     partnerDeviceFolder: null,
     accountEmail: null,
   },
+  bluetoothSyncConfig: {
+    bondedPeerAddress: null,
+    bondedPeerName: null,
+    lastSentSequence: 0,
+    lastTransferAt: null,
+    lastConnectedDeviceId: null,
+  },
   syncStatus: {
     lastUploadAt: null,
     lastSyncAt: null,
@@ -63,6 +75,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     lastUploadError: null,
     lastSyncError: null,
     lastAppliedPackageId: null,
+    lastBluetoothTransferAt: null,
+    lastBluetoothError: null,
   },
   isInitializing: true,
 
@@ -74,6 +88,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCategories: cats => set({categories: cats}),
   setDriveConfig: d =>
     set(state => ({driveConfig: {...state.driveConfig, ...d}})),
+  setBluetoothSyncConfig: b =>
+    set(state => ({bluetoothSyncConfig: {...state.bluetoothSyncConfig, ...b}})),
   setSyncStatus: s =>
     set(state => ({syncStatus: {...state.syncStatus, ...s}})),
   setInitializing: v => set({isInitializing: v}),

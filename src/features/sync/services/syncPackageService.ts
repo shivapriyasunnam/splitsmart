@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import {SyncPackage, SyncChange, ChangeLogEntry} from '../../../types';
 import {
   getUnsyncedChanges,
+  getChangesAfterSequence,
   markChangesAsUploaded,
 } from '../../../db/repositories/changeLogRepository';
 import {encrypt, serializeEncrypted} from '../crypto/encryptionService';
@@ -56,10 +57,10 @@ export function getSyncPackageFilename(packageId: string): string {
 }
 
 /**
- * Create an encrypted sync package from unsynced changes.
+ * Create an encrypted sync package from Drive-unsynced changes (uploaded_at IS NULL).
  * Returns null if there are no changes.
  */
-export async function createEncryptedSyncPackage(
+export async function createEncryptedDriveSyncPackage(
   sourceDeviceId: string,
   pairId: string,
   passphrase: string,
@@ -79,6 +80,9 @@ export async function createEncryptedSyncPackage(
   };
 }
 
+/** @deprecated use createEncryptedDriveSyncPackage */
+export const createEncryptedSyncPackage = createEncryptedDriveSyncPackage;
+
 /**
  * Mark changes as uploaded after successful Drive upload.
  */
@@ -87,4 +91,51 @@ export async function finalizePackageUpload(
   packageId: string,
 ): Promise<void> {
   await markChangesAsUploaded(changeIds, packageId);
+}
+
+/**
+ * Create an encrypted sync package from changes above a Bluetooth cursor sequence.
+ * Does NOT touch uploaded_at — Drive upload state is preserved.
+ * Returns null if there are no new changes above the cursor.
+ */
+export async function createEncryptedBluetoothSyncPackage(
+  sourceDeviceId: string,
+  pairId: string,
+  passphrase: string,
+  lastSentSequence: number,
+): Promise<{encryptedData: string; packageId: string; sequenceTo: number} | null> {
+  const changes = await getChangesAfterSequence(lastSentSequence);
+  if (changes.length === 0) return null;
+
+  const pkg = buildSyncPackage(changes, sourceDeviceId, pairId);
+  const serialized = JSON.stringify(pkg);
+  const encrypted = encrypt(serialized, passphrase);
+  const encryptedData = serializeEncrypted(encrypted);
+
+  return {
+    encryptedData,
+    packageId: pkg.packageId,
+    sequenceTo: pkg.sequenceRange.to,
+  };
+}
+
+/**
+ * Create a plaintext (unencrypted) Bluetooth sync package.
+ * Use this when encryption is not required — payload is raw JSON.
+ * Returns null if there are no new changes above the cursor.
+ */
+export async function createRawBluetoothSyncPackage(
+  sourceDeviceId: string,
+  pairId: string,
+  lastSentSequence: number,
+): Promise<{payload: string; packageId: string; sequenceTo: number} | null> {
+  const changes = await getChangesAfterSequence(lastSentSequence);
+  if (changes.length === 0) return null;
+
+  const pkg = buildSyncPackage(changes, sourceDeviceId, pairId);
+  return {
+    payload: JSON.stringify(pkg),
+    packageId: pkg.packageId,
+    sequenceTo: pkg.sequenceRange.to,
+  };
 }

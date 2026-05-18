@@ -2,7 +2,7 @@ import {v4 as uuidv4} from 'uuid';
 import dayjs from 'dayjs';
 import {getDB} from '../database';
 import {Settlement} from '../../types';
-import {writeChangeLog} from './changeLogRepository';
+import {writeChangeLogInTx, getNextChangeLogSequence} from './changeLogRepository';
 
 export async function getSettlements(): Promise<Settlement[]> {
   const db = await getDB();
@@ -24,13 +24,14 @@ export async function createSettlement(
   const id = uuidv4();
   const settlement: Settlement = {...data, id, created_at: now, updated_at: now, deleted_at: null};
 
-  await db.transaction(async tx => {
-    await tx.executeSql(
+  const seq = await getNextChangeLogSequence();
+  await db.transaction(tx => {
+    tx.executeSql(
       `INSERT INTO settlements (id, amount_minor, paid_by_member_id, received_by_member_id, settlement_date, note, created_at, updated_at, deleted_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
       [id, data.amount_minor, data.paid_by_member_id, data.received_by_member_id, data.settlement_date, data.note ?? null, now, now],
     );
-    await writeChangeLog(tx, 'settlement', id, 'upsert', settlement);
+    writeChangeLogInTx(tx, 'settlement', id, 'upsert', settlement, seq);
   });
 
   return settlement;
@@ -39,11 +40,12 @@ export async function createSettlement(
 export async function softDeleteSettlement(id: string): Promise<void> {
   const db = await getDB();
   const now = dayjs().toISOString();
-  await db.transaction(async tx => {
-    await tx.executeSql(
+  const seq = await getNextChangeLogSequence();
+  await db.transaction(tx => {
+    tx.executeSql(
       'UPDATE settlements SET deleted_at = ?, updated_at = ? WHERE id = ?',
       [now, now, id],
     );
-    await writeChangeLog(tx, 'settlement', id, 'delete', {id, deleted_at: now});
+    writeChangeLogInTx(tx, 'settlement', id, 'delete', {id, deleted_at: now}, seq);
   });
 }

@@ -129,6 +129,16 @@ export interface SyncStatus {
   lastUploadError: string | null;
   lastSyncError: string | null;
   lastAppliedPackageId: string | null;
+  lastBluetoothTransferAt: string | null;
+  lastBluetoothError: string | null;
+}
+
+export interface BluetoothSyncConfig {
+  bondedPeerAddress: string | null;
+  bondedPeerName: string | null;
+  lastSentSequence: number;
+  lastTransferAt: string | null;
+  lastConnectedDeviceId: string | null;
 }
 
 export interface EncryptionConfig {

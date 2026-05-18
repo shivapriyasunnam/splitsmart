@@ -2,7 +2,7 @@ import {v4 as uuidv4} from 'uuid';
 import dayjs from 'dayjs';
 import {getDB} from '../database';
 import {Member} from '../../types';
-import {writeChangeLog} from './changeLogRepository';
+import {writeChangeLogInTx, getNextChangeLogSequence} from './changeLogRepository';
 
 export async function getMembers(): Promise<Member[]> {
   const db = await getDB();
@@ -25,14 +25,15 @@ export async function getMemberById(id: string): Promise<Member | null> {
 
 export async function upsertMember(member: Member): Promise<void> {
   const db = await getDB();
-  await db.transaction(async tx => {
-    await tx.executeSql(
+  const seq = await getNextChangeLogSequence();
+  await db.transaction(tx => {
+    tx.executeSql(
       `INSERT INTO members (id, name, role, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET name = excluded.name, role = excluded.role, updated_at = excluded.updated_at`,
       [member.id, member.name, member.role, member.created_at, member.updated_at],
     );
-    await writeChangeLog(tx, 'member', member.id, 'upsert', member);
+    writeChangeLogInTx(tx, 'member', member.id, 'upsert', member, seq);
   });
 }
 

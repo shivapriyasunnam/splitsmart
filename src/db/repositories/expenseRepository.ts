@@ -2,7 +2,7 @@ import {v4 as uuidv4} from 'uuid';
 import dayjs from 'dayjs';
 import {getDB} from '../database';
 import {Expense} from '../../types';
-import {writeChangeLog} from './changeLogRepository';
+import {writeChangeLogInTx, getNextChangeLogSequence} from './changeLogRepository';
 import {getConfig} from './configRepository';
 
 export interface ExpenseFilters {
@@ -66,8 +66,9 @@ export async function createExpense(
     deleted_at: null,
   };
 
-  await db.transaction(async tx => {
-    await tx.executeSql(
+  const seq = await getNextChangeLogSequence();
+  await db.transaction(tx => {
+    tx.executeSql(
       `INSERT INTO expenses (id, title, note, amount_minor, currency, expense_date, category_id, paid_by_member_id,
         split_type, split_payload_json, created_by_device_id, created_at, updated_at, deleted_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
@@ -78,7 +79,7 @@ export async function createExpense(
         expense.created_by_device_id, expense.created_at, expense.updated_at,
       ],
     );
-    await writeChangeLog(tx, 'expense', id, 'upsert', expense);
+    writeChangeLogInTx(tx, 'expense', id, 'upsert', expense, seq);
   });
 
   return expense;
@@ -97,11 +98,14 @@ export async function updateExpense(
     .join(', ');
   const values = [...Object.values(data), id];
 
-  await db.transaction(async tx => {
-    await tx.executeSql(`UPDATE expenses SET ${fields} WHERE id = ?`, values);
-    const updated = await getExpenseById(id);
+  // Fetch current record BEFORE opening the transaction to avoid db.executeSql deadlock inside the callback.
+  const current = await getExpenseById(id);
+  const updated: Expense | null = current ? {...current, ...data} as Expense : null;
+  const seq = await getNextChangeLogSequence();
+  await db.transaction(tx => {
+    tx.executeSql(`UPDATE expenses SET ${fields} WHERE id = ?`, values);
     if (updated) {
-      await writeChangeLog(tx, 'expense', id, 'upsert', updated);
+      writeChangeLogInTx(tx, 'expense', id, 'upsert', updated, seq);
     }
   });
 
@@ -111,18 +115,17 @@ export async function updateExpense(
 export async function softDeleteExpense(id: string): Promise<void> {
   const db = await getDB();
   const now = dayjs().toISOString();
-  await db.transaction(async tx => {
-    await tx.executeSql(
+  // Fetch the full row BEFORE opening the transaction to avoid db.executeSql
+  // deadlock inside the callback.
+  const existing = await getExpenseById(id);
+  const seq = await getNextChangeLogSequence();
+  await db.transaction(tx => {
+    tx.executeSql(
       'UPDATE expenses SET deleted_at = ?, updated_at = ? WHERE id = ?',
       [now, now, id],
     );
-    const expense = await db.executeSql(
-      'SELECT * FROM expenses WHERE id = ?',
-      [id],
-    );
-    const row = expense[0].rows.item(0);
-    if (row) {
-      await writeChangeLog(tx, 'expense', id, 'delete', row);
+    if (existing) {
+      writeChangeLogInTx(tx, 'expense', id, 'delete', {...existing, deleted_at: now, updated_at: now}, seq);
     }
   });
 }
