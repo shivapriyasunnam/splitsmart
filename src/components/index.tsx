@@ -111,14 +111,25 @@ interface CardProps {
   children: React.ReactNode;
   style?: ViewStyle;
   padded?: boolean;
+  onPress?: () => void;
+  onLongPress?: () => void;
 }
 
-export const Card: React.FC<CardProps> = ({children, style, padded = true}) => (
-  <View
-    style={[styles.card, padded && {padding: Spacing.md}, Shadows.sm, style]}>
-    {children}
-  </View>
-);
+export const Card: React.FC<CardProps> = ({children, style, padded = true, onPress, onLongPress}) => {
+  const content = (
+    <View style={[styles.card, padded && {padding: Spacing.md}, Shadows.sm, style]}>
+      {children}
+    </View>
+  );
+  if (onPress || onLongPress) {
+    return (
+      <TouchableOpacity onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+  return content;
+};
 
 // ─── SectionHeader ───────────────────────────────────────────────────────────
 

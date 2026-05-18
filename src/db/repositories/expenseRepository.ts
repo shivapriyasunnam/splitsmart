@@ -138,3 +138,16 @@ export async function getMonthlyTotal(monthKey: string): Promise<number> {
   );
   return res.rows.item(0).total;
 }
+
+export async function getMonthlyTotalsByCurrency(monthKey: string): Promise<{currency: string; total: number}[]> {
+  const db = await getDB();
+  const [res] = await db.executeSql(
+    "SELECT currency, COALESCE(SUM(amount_minor), 0) as total FROM expenses WHERE deleted_at IS NULL AND strftime('%Y-%m', expense_date) = ? GROUP BY currency ORDER BY currency ASC",
+    [monthKey],
+  );
+  const results: {currency: string; total: number}[] = [];
+  for (let i = 0; i < res.rows.length; i++) {
+    results.push(res.rows.item(i));
+  }
+  return results;
+}

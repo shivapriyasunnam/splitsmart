@@ -13,7 +13,7 @@ import dayjs from 'dayjs';
 import {Card, EmptyState, LoadingState, Button} from '../../../components';
 import {Colors, Typography, Spacing, BorderRadius, Shadows} from '../../../app/theme';
 import {useAppStore} from '../../../app/providers/store';
-import {getExpenses, softDeleteExpense, getMonthlyTotal} from '../../../db/repositories/expenseRepository';
+import {getExpenses, softDeleteExpense, getMonthlyTotalsByCurrency} from '../../../db/repositories/expenseRepository';
 import {Expense, Category} from '../../../types';
 import {formatAmount} from '../../balances/services/balanceService';
 
@@ -26,7 +26,7 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format('YYYY-MM'));
-  const [monthlyTotal, setMonthlyTotal] = useState(0);
+  const [monthlyTotals, setMonthlyTotals] = useState<{currency: string; total: number}[]>([]);
 
   const loadExpenses = useCallback(async () => {
     setLoading(true);
@@ -35,8 +35,8 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
         monthKey: selectedMonth,
       });
       setExpenses(data);
-      const total = await getMonthlyTotal(selectedMonth);
-      setMonthlyTotal(total);
+      const totals = await getMonthlyTotalsByCurrency(selectedMonth);
+      setMonthlyTotals(totals);
     } finally {
       setLoading(false);
     }
@@ -137,9 +137,13 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
       <Card style={styles.totalCard} padded={false}>
         <View style={styles.totalContent}>
           <Text style={styles.totalLabel}>Total this month</Text>
-          <Text style={styles.totalAmount}>
-            {formatAmount(monthlyTotal, profile?.currency ?? 'CAD')}
-          </Text>
+          <View style={styles.totalAmounts}>
+            {monthlyTotals.map(({currency, total}) => (
+              <Text key={currency} style={styles.totalAmount}>
+                {formatAmount(total, currency)}
+              </Text>
+            ))}
+          </View>
         </View>
       </Card>
 
@@ -209,6 +213,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   totalLabel: {fontSize: 14, color: Colors.textOnPrimaryMuted, fontWeight: '500'},
+  totalAmounts: {alignItems: 'flex-end', gap: 2},
   totalAmount: {fontSize: 22, fontWeight: '700', color: Colors.textOnPrimary},
   list: {paddingHorizontal: Spacing.md, paddingBottom: 100},
   expenseRow: {

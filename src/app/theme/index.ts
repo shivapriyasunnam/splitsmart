@@ -1,7 +1,7 @@
 import {StyleSheet, TextStyle, ViewStyle} from 'react-native';
 
 export const Colors = {
-  primary: '#83a8fd',
+  primary: '#669fe0',
   primaryLight: '#818CF8',
   primaryDark: '#3730A3',
   secondary: '#06B6D4',
@@ -35,13 +35,13 @@ export const Colors = {
   categoryColors: [
     '#71be91',
     '#06B6D4',
-    '#10B981',
+    '#cdcd1a',
     '#F59E0B',
     '#EF4444',
     '#8B5CF6',
     '#F43F5E',
     '#0EA5E9',
-    '#84CC16',
+    '#859868',
     '#F97316',
   ],
 };

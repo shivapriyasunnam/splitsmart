@@ -5,7 +5,7 @@ import {Card, LoadingState, Button, Divider} from '../../../components';
 import {Colors, Typography, Spacing, BorderRadius, Shadows} from '../../../app/theme';
 import {useAppStore} from '../../../app/providers/store';
 import {getExpenses} from '../../../db/repositories/expenseRepository';
-import {getSettlements, createSettlement} from '../../../db/repositories/settlementRepository';
+import {getSettlements, createSettlement, softDeleteSettlement} from '../../../db/repositories/settlementRepository';
 import {getMembers} from '../../../db/repositories/memberRepository';
 import {computeBalances, formatAmount, parseAmountToMinor, formatAmountMajor} from '../services/balanceService';
 import {BalanceSummary, Settlement} from '../../../types';
@@ -53,6 +53,20 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
     loadData();
     return unsubscribe;
   }, [navigation, loadData]);
+
+  function confirmDeleteSettlement(id: string) {
+    Alert.alert('Delete Settlement', 'Remove this settlement record?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await softDeleteSettlement(id);
+          loadData();
+        },
+      },
+    ]);
+  }
 
   async function handleSettle() {
     if (!myMember || !partnerMember) return;
@@ -180,7 +194,7 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
                 {settlements.map(s => {
                   const isMePayer = s.paid_by_member_id === myMember?.id;
                   return (
-                    <Card key={s.id} style={styles.settlementRow}>
+                    <Card key={s.id} style={styles.settlementRow} onLongPress={() => confirmDeleteSettlement(s.id)}>
                       <View style={styles.settleRowContent}>
                         <View style={styles.settleInfo}>
                           <Text style={styles.settleName}>

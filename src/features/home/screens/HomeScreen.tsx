@@ -105,7 +105,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               <Card style={styles.primaryCard} padded={false}>
                 <View style={styles.primaryContent}>
                   <Text style={styles.primaryLabel}>Total spent this month</Text>
-                  <Text style={styles.primaryAmount}>{formatAmount(monthlyTotal, currency)}</Text>
+                  <View style={styles.primaryAmountRow}>
+                    {currency === 'INR' && <Text style={styles.primaryCurrency}>₹</Text>}
+                    <Text style={styles.primaryAmount}>
+                      {(monthlyTotal / 100).toLocaleString(
+                        currency === 'INR' ? 'en-IN' : 'en-US',
+                        {minimumFractionDigits: 0, maximumFractionDigits: 2},
+                      )}
+                    </Text>
+                    {currency !== 'INR' && <Text style={styles.primaryCurrency}>{currency}</Text>}
+                  </View>
                   <Text style={styles.primarySub}>{dayjs().format('MMMM YYYY')} · tap to view expenses</Text>
                 </View>
               </Card>
@@ -135,6 +144,35 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 </View>
               </Card>
             </TouchableOpacity>
+
+            {/* 4. Spend Distribution */}
+            <TouchableOpacity onPress={() => navigation.navigate('Insights')} activeOpacity={0.85}>
+              <Card style={styles.section} padded={false}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Spend Distribution</Text>
+                  <Text style={styles.seeAll}>See details ›</Text>
+                </View>
+                {pieData.length === 0 ? (
+                  <Text style={styles.emptyText}>No expenses recorded this month</Text>
+                ) : (
+                  <PieChart
+                    data={pieData}
+                    width={CHART_WIDTH}
+                    height={180}
+                    chartConfig={{
+                      color: (opacity = 1) => `rgba(${Colors.shadowRGB},${opacity})`,
+                      backgroundGradientFrom: Colors.surface,
+                      backgroundGradientTo: Colors.surface,
+                    }}
+                    accessor="population"
+                    backgroundColor="transparent"
+                    paddingLeft="8"
+                    absolute={false}
+                  />
+                )}
+              </Card>
+            </TouchableOpacity>
+
 
             {/* 3. Budget Summary */}
             <TouchableOpacity onPress={() => navigation.navigate('Budgets')} activeOpacity={0.85}>
@@ -177,33 +215,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               </Card>
             </TouchableOpacity>
 
-            {/* 4. Spend Distribution */}
-            <TouchableOpacity onPress={() => navigation.navigate('Insights')} activeOpacity={0.85}>
-              <Card style={styles.section} padded={false}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Spend Distribution</Text>
-                  <Text style={styles.seeAll}>See details ›</Text>
-                </View>
-                {pieData.length === 0 ? (
-                  <Text style={styles.emptyText}>No expenses recorded this month</Text>
-                ) : (
-                  <PieChart
-                    data={pieData}
-                    width={CHART_WIDTH}
-                    height={180}
-                    chartConfig={{
-                      color: (opacity = 1) => `rgba(${Colors.shadowRGB},${opacity})`,
-                      backgroundGradientFrom: Colors.surface,
-                      backgroundGradientTo: Colors.surface,
-                    }}
-                    accessor="population"
-                    backgroundColor="transparent"
-                    paddingLeft="8"
-                    absolute={false}
-                  />
-                )}
-              </Card>
-            </TouchableOpacity>
+
           </>
         )}
       </ScrollView>
@@ -237,13 +249,14 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.primary,
-    ...Shadows.md,
+    ...Shadows.sm,
   },
   primaryContent: {padding: Spacing.lg},
-  primaryLabel: {...Typography.body, color: Colors.textOnPrimaryMuted, marginBottom: 4},
-  primaryAmount: {...Typography.h1, color: Colors.surface, fontSize: 36},
-  primarySub: {...Typography.caption, color: Colors.textOnPrimarySubtle, marginTop: 4},
+  primaryLabel: {...Typography.h3, marginBottom: 4},
+  primaryAmountRow: {flexDirection: 'row', alignItems: 'baseline', gap: 6},
+  primaryAmount: {...Typography.h1, color: Colors.text, fontSize: 36},
+  primaryCurrency: {fontSize: 14, fontWeight: '600', color: Colors.text},
+  primarySub: {...Typography.caption, color: Colors.primary, marginTop: 4},
   section: {
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
