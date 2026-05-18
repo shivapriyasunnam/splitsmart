@@ -85,8 +85,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const dayOfMonth = dayjs().date();
   const daysInMonth = dayjs().daysInMonth();
-  const weekOfMonth = Math.floor(dayOfMonth / 7);
-  const totalWeeks = Math.floor(daysInMonth / 7);
+  const weekOfMonth = Math.ceil(dayOfMonth / 7);
+  const totalWeeks = Math.ceil(daysInMonth / 7);
   const monthOfYear = dayjs().month() + 1;
 
   return (

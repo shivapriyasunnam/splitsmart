@@ -33,6 +33,7 @@
     "react-native-crypto-js": "^1.0.0",
     "react-native-date-picker": "^5.0.13",
     "react-native-encrypted-storage": "^4.0.3",
+    "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.31.2",
     "react-native-get-random-values": "^2.0.0",
     "react-native-keychain": "^8.2.0",

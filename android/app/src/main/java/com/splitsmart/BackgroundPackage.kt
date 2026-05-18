@@ -7,7 +7,7 @@ import com.facebook.react.uimanager.ViewManager
 
 class BackgroundPackage : ReactPackage {
   override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-      listOf(BackgroundModule(reactContext))
+      listOf(BackgroundModule(reactContext), DownloadModule(reactContext), FilePickerModule(reactContext))
 
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =
       emptyList()
