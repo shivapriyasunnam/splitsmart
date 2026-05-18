@@ -427,7 +427,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
 
   if (section === 'rules') {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.sectionHeader}>
           <TouchableOpacity onPress={() => setSection('main')}>
             <Text style={styles.backLink}>← Settings</Text>
@@ -534,7 +534,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
   // ─── Main Settings ────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.sectionHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backLink}>‹ Back</Text>

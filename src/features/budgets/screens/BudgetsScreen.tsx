@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
   FlatList,
   Alert,
 } from 'react-native';
@@ -181,7 +183,14 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
 
       {/* Edit Budget Modal */}
       {editingRow && (
-        <View style={styles.overlay}>
+      <Modal
+        visible={!!editingRow}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingRow(null)}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.modalBox}>
             <View style={styles.modalHeader}>
               <View style={[styles.catDot, {backgroundColor: editingRow.category.color}]} />
@@ -214,7 +223,8 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
               />
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
+      </Modal>
       )}
     </SafeAreaView>
   );
@@ -235,7 +245,7 @@ const styles = StyleSheet.create({
   monthArrow: {padding: Spacing.sm},
   monthArrowText: {fontSize: 24, color: Colors.primary, fontWeight: '600'},
   monthLabel: {...Typography.h3, fontSize: 17},
-  content: {padding: Spacing.md, paddingBottom: Spacing.xl},
+  content: {padding: Spacing.md, paddingBottom: Spacing.sm},
   summaryRow: {flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md},
   summaryCard: {flex: 1, ...Shadows.sm},
   summaryLabel: {...Typography.caption, marginBottom: 4},

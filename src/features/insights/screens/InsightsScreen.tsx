@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   monthArrow: {padding: Spacing.sm},
   monthArrowText: {fontSize: 24, color: Colors.primary, fontWeight: '600'},
   monthLabel: {...Typography.h3, fontSize: 17},
-  content: {padding: Spacing.md, paddingBottom: Spacing.xl},
+  content: {padding: Spacing.md, paddingBottom: Spacing.sm},
   summaryRow: {flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md},
   summaryCard: {minWidth: '45%', flex: 1, ...Shadows.sm},
   summaryLabel: {...Typography.caption, marginBottom: 4},

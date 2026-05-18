@@ -1,5 +1,5 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import {View, Text, StyleSheet, ScrollView, Alert} from 'react-native';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
+import {View, Text, StyleSheet, ScrollView, Alert, Modal, KeyboardAvoidingView, Platform, TextInput} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Card, LoadingState, Button, Divider} from '../../../components';
 import {Colors, Typography, Spacing, BorderRadius, Shadows} from '../../../app/theme';
@@ -23,6 +23,7 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
   const [loading, setLoading] = useState(true);
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [settleAmount, setSettleAmount] = useState('');
+  const settleAmountRef = useRef<TextInput>(null);
   const [settleNote, setSettleNote] = useState('');
   const [settling, setSettling] = useState(false);
 
@@ -53,6 +54,13 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
     loadData();
     return unsubscribe;
   }, [navigation, loadData]);
+
+  useEffect(() => {
+    if (showSettleModal) {
+      const timer = setTimeout(() => settleAmountRef.current?.focus(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [showSettleModal]);
 
   function confirmDeleteSettlement(id: string) {
     Alert.alert('Delete Settlement', 'Remove this settlement record?', [
@@ -221,8 +229,15 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
 
       {/* Settlement Modal */}
       {showSettleModal && (
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
+        <Modal
+          visible={showSettleModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSettleModal(false)}>
+          <KeyboardAvoidingView
+            style={styles.overlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Record Settlement</Text>
             <Text style={styles.modalSubtitle}>
               {balanceInfo.label}:{' '}
@@ -237,7 +252,7 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
               onChangeText={setSettleAmount}
               keyboardType="decimal-pad"
               placeholder={formatAmountMajor(balanceInfo.amount)}
-              autoFocus
+              ref={settleAmountRef}
             />
             <Input
               label="Note (optional)"
@@ -259,8 +274,9 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
                 style={styles.modalBtn}
               />
             </View>
-          </View>
-        </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       )}
     </SafeAreaView>
   );
@@ -268,7 +284,7 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
-  content: {padding: Spacing.md, paddingBottom: Spacing.xl},
+  content: {padding: Spacing.md, paddingBottom: Spacing.sm},
   mainCard: {
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
@@ -297,7 +313,7 @@ const styles = StyleSheet.create({
   settleDate: {...Typography.caption, marginTop: 2},
   settleAmount: {...Typography.bodyMedium, color: Colors.primary},
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: Colors.overlay,
     justifyContent: 'center',
     padding: Spacing.lg,

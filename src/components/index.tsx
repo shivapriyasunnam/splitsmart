@@ -87,23 +87,24 @@ interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export const Input: React.FC<InputProps> = ({
+export const Input = React.forwardRef<TextInput, InputProps>(({
   label,
   error,
   containerStyle,
   style,
   ...rest
-}) => (
+}, ref) => (
   <View style={[styles.inputContainer, containerStyle]}>
     {label ? <Text style={styles.inputLabel}>{label}</Text> : null}
     <TextInput
+      ref={ref}
       style={[styles.input, error ? styles.inputError : null, style as TextStyle]}
       placeholderTextColor={Colors.textMuted}
       {...rest}
     />
     {error ? <Text style={styles.errorText}>{error}</Text> : null}
   </View>
-);
+));
 
 // ─── Card ────────────────────────────────────────────────────────────────────
 

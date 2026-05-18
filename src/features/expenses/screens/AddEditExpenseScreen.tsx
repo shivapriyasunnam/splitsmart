@@ -2,12 +2,14 @@ import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   Alert,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
@@ -146,9 +148,10 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={{flex: 1}}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={styles.content}>
         <Input
           label="Title *"
           value={title}
@@ -181,7 +184,7 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
           <Text style={styles.fieldLabel}>Date *</Text>
           <TouchableOpacity
             style={styles.selector}
-            onPress={() => setShowDatePicker(true)}>
+            onPress={() => { Keyboard.dismiss(); setShowDatePicker(true); }}>
             <Text style={styles.selectorText}>
               {dayjs(expenseDate).format('D MMMM YYYY')}
             </Text>
@@ -195,7 +198,7 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
           <Text style={styles.fieldLabel}>Category *</Text>
           <TouchableOpacity
             style={[styles.selector, selectedCategory && {borderColor: selectedCategory.color}]}
-            onPress={() => setShowCategoryPicker(true)}>
+            onPress={() => { Keyboard.dismiss(); setShowCategoryPicker(true); }}>
             {selectedCategory ? (
               <View style={styles.catRow}>
                 <View style={[styles.catDot, {backgroundColor: selectedCategory.color}]} />
@@ -223,7 +226,7 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
                   styles.memberChip,
                   paidByMemberId === m.id && styles.memberChipSelected,
                 ]}
-                onPress={() => setPaidByMemberId(m.id)}>
+                onPress={() => { Keyboard.dismiss(); setPaidByMemberId(m.id); }}>
                 <Text
                   style={[
                     styles.memberChipText,
@@ -245,7 +248,7 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
               <TouchableOpacity
                 key={st}
                 style={[styles.memberChip, splitType === st && styles.memberChipSelected]}
-                onPress={() => setSplitType(st)}>
+                onPress={() => { Keyboard.dismiss(); setSplitType(st); }}>
                 <Text
                   style={[
                     styles.memberChipText,
@@ -264,7 +267,8 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
           loading={loading}
           style={styles.saveBtn}
         />
-      </ScrollView>
+      </View>
+      </KeyboardAvoidingView>
 
       {/* Category Picker Modal */}
       <Modal visible={showCategoryPicker} animationType="slide" transparent>

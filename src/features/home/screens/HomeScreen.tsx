@@ -83,6 +83,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     ? Math.min((budgetSummary.totalSpent / budgetSummary.totalBudget) * 100, 100)
     : 0;
 
+  const dayOfMonth = dayjs().date();
+  const daysInMonth = dayjs().daysInMonth();
+  const weekOfMonth = Math.floor(dayOfMonth / 7);
+  const totalWeeks = Math.floor(daysInMonth / 7);
+  const monthOfYear = dayjs().month() + 1;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -104,7 +110,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             <TouchableOpacity onPress={() => navigation.navigate('Expenses')} activeOpacity={0.85}>
               <Card style={styles.primaryCard} padded={false}>
                 <View style={styles.primaryContent}>
-                  <Text style={styles.primaryLabel}>Total spent this month</Text>
+                  <View style={styles.primaryHeader}>
+                    <Text style={styles.primaryLabel}>Total spent this month</Text>
+                    <TouchableOpacity
+                      style={styles.primaryAddBtn}
+                      onPress={() => navigation.navigate('AddExpense')}
+                      activeOpacity={0.8}>
+                      <FontAwesome name="plus" size={20} color={Colors.surface} />
+                    </TouchableOpacity>
+                  </View>
                   <View style={styles.primaryAmountRow}>
                     {currency === 'INR' && <Text style={styles.primaryCurrency}>₹</Text>}
                     <Text style={styles.primaryAmount}>
@@ -119,7 +133,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 </View>
               </Card>
             </TouchableOpacity>
-
             {/* 2. Balance */}
             <TouchableOpacity onPress={() => navigation.navigate('Balances')} activeOpacity={0.85}>
               <Card style={styles.section} padded={false}>
@@ -158,7 +171,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                   <PieChart
                     data={pieData}
                     width={CHART_WIDTH}
-                    height={180}
+                    height={189}
                     chartConfig={{
                       color: (opacity = 1) => `rgba(${Colors.shadowRGB},${opacity})`,
                       backgroundGradientFrom: Colors.surface,
@@ -204,7 +217,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                       <View key={r.category.id} style={styles.budgetRow}>
                         <View style={[styles.catDot, {backgroundColor: r.category.color}]} />
                         <Text style={styles.budgetCatName} numberOfLines={1}>{r.category.name}</Text>
-                        <Text style={[styles.budgetCatAmt, r.isOverBudget && {color: Colors.danger}]}>
+                        <Text style={[styles.budgetCatAmt, {color: r.isOverBudget ? Colors.danger : r.category.color}]}>
                           {formatAmount(r.spentAmount, currency)}
                           {r.hasBudget ? ` / ${formatAmount(r.budgetAmount, currency)}` : ''}
                         </Text>
@@ -215,51 +228,78 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               </Card>
             </TouchableOpacity>
 
+            {/* 5. Time Progress */}
+            <View style={styles.dotProgressCard}>
+              {[
+                {label: 'Day', current: dayOfMonth, total: daysInMonth},
+                {label: 'Week', current: weekOfMonth, total: totalWeeks},
+                {label: 'Month', current: monthOfYear, total: 12},
+              ].map(({label, current, total}) => (
+                <View key={label} style={styles.dotProgressRow}>
+                  <Text style={styles.dotProgressLabel}>{label}</Text>
+                  <View style={styles.dotProgressDots}>
+                    {Array.from({length: total}, (_, i) => (
+                      <View key={i} style={[styles.dotBase, i < current ? styles.dotActive : styles.dotInactive]} />
+                    ))}
+                  </View>
+                  <Text style={styles.dotProgressFraction}>{current}/{total}</Text>
+                </View>
+              ))}
+              <View style={{height: Spacing.sm}} />
+            </View>
 
           </>
         )}
       </ScrollView>
 
-      {/* FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('AddExpense')}
-        activeOpacity={0.85}>
-        <FontAwesome name="plus" size={22} color={Colors.surface} />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
-  scroll: {paddingBottom: 100},
+  scroll: {paddingBottom: Spacing.sm},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingTop: Spacing.sm,
+    paddingBottom: 4,
   },
-  greeting: {...Typography.h2},
+  greeting: {...Typography.h2, color: Colors.primary},
   subtitle: {...Typography.body, color: Colors.textMuted},
   settingsBtn: {padding: Spacing.sm},
   primaryCard: {
     marginHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: 4,
     borderRadius: BorderRadius.md,
     ...Shadows.sm,
   },
-  primaryContent: {padding: Spacing.lg},
-  primaryLabel: {...Typography.h3, marginBottom: 4},
+  primaryContent: {padding: Spacing.md, paddingTop: Spacing.sm},
+  primaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  primaryLabel: {...Typography.h3, color: Colors.primary},
+  primaryAddBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   primaryAmountRow: {flexDirection: 'row', alignItems: 'baseline', gap: 6},
-  primaryAmount: {...Typography.h1, color: Colors.text, fontSize: 36},
-  primaryCurrency: {fontSize: 14, fontWeight: '600', color: Colors.text},
+  primaryAmount: {...Typography.h1, color: Colors.primary, fontSize: 36},
+  primaryCurrency: {fontSize: 14, fontWeight: '600', color: Colors.primary},
   primarySub: {...Typography.caption, color: Colors.primary, marginTop: 4},
   section: {
     marginHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginBottom: 4,
     borderRadius: BorderRadius.md,
     ...Shadows.sm,
   },
@@ -268,31 +308,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingTop: Spacing.sm,
+    paddingBottom: 4,
   },
-  sectionTitle: {...Typography.h3},
+  sectionTitle: {...Typography.h3, color: Colors.primary},
   seeAll: {...Typography.caption, color: Colors.primary},
   balanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
     gap: Spacing.sm,
   },
   balanceDot: {width: 10, height: 10, borderRadius: 5},
-  balanceText: {...Typography.body, flex: 1},
+  balanceText: {...Typography.body, flex: 1, color: Colors.primary},
   balanceAmt: {...Typography.body, fontWeight: '700'},
   budgetAmounts: {
     flexDirection: 'row',
     alignItems: 'baseline',
     paddingHorizontal: Spacing.md,
     gap: Spacing.xs,
-    marginBottom: Spacing.sm,
+    marginBottom: 4,
   },
-  budgetSpent: {...Typography.h3},
+  budgetSpent: {...Typography.h3, color: Colors.primary},
   budgetTotal: {...Typography.body, color: Colors.textMuted},
-  progressWrap: {paddingHorizontal: Spacing.md, marginBottom: Spacing.sm},
+  progressWrap: {paddingHorizontal: Spacing.md, marginBottom: 4},
   overBudgetWarning: {
     ...Typography.caption,
     color: Colors.danger,
@@ -303,7 +343,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 3,
     gap: Spacing.sm,
   },
   catDot: {width: 8, height: 8, borderRadius: 4},
@@ -315,20 +355,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
   },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
+  dotProgressCard: {
+    marginHorizontal: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  dotProgressRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-    shadowColor: Colors.shadow,
-    shadowOffset: {width: 0, height: 3},
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    gap: Spacing.sm,
+  },
+  dotProgressLabel: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    width: 38,
+  },
+  dotProgressDots: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    gap: 1,
+  },
+  dotBase: {
+    width: 7.5,
+    height: 7.5,
+    borderRadius: 4,
+  },
+  dotActive: {backgroundColor: Colors.primary},
+  dotInactive: {backgroundColor: Colors.border},
+  dotProgressFraction: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    width: 42,
+    textAlign: 'right',
   },
 });

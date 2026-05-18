@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   totalLabel: {fontSize: 14, color: Colors.textOnPrimaryMuted, fontWeight: '500'},
   totalAmounts: {alignItems: 'flex-end', gap: 2},
   totalAmount: {fontSize: 22, fontWeight: '700', color: Colors.textOnPrimary},
-  list: {paddingHorizontal: Spacing.md, paddingBottom: 100},
+  list: {paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm},
   expenseRow: {
     flexDirection: 'row',
     alignItems: 'center',
