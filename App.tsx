@@ -16,7 +16,7 @@ import {runEODCatchup} from './src/features/sync/jobs/eodCatchup';
 dayjs.extend(relativeTime);
 
 function AppContent() {
-  const {isInitializing, isSetupComplete} = useAppStore();
+  const {isInitializing, isSetupComplete, themeVersion} = useAppStore();
 
   useEffect(() => {
     runEODCatchup().catch(err => console.warn('EOD catchup error:', err));
@@ -35,7 +35,7 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer key={themeVersion}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
       <AppNavigator />
     </NavigationContainer>

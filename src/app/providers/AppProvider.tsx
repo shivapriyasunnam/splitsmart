@@ -4,6 +4,7 @@ import {getConfig, setConfig} from '../../db/repositories/configRepository';
 import {getAllCategories} from '../../db/repositories/categoryRepository';
 import {getMembers} from '../../db/repositories/memberRepository';
 import {useAppStore} from './store';
+import {Colors} from '../theme';
 import {Profile, DeviceConfig, DriveConfig, SyncStatus} from '../../types';
 import {v4 as uuidv4} from 'uuid';
 
@@ -58,6 +59,12 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({children}) =
       // Load categories
       const categories = await getAllCategories();
       store.setCategories(categories);
+
+      // Apply saved primary color before first render
+      const savedColor = await getConfig<string>('primary_color');
+      if (savedColor) {
+        Colors.primary = savedColor;
+      }
     } catch (err) {
       console.error('App initialization error:', err);
     } finally {

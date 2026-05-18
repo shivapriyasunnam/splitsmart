@@ -11,6 +11,8 @@ import {
   Switch,
   PermissionsAndroid,
   Platform,
+  Share,
+  TextInput,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
@@ -33,7 +35,9 @@ import {
   getAllCategories,
 } from '../../../db/repositories/categoryRepository';
 import {validateRegexPattern} from '../../categories/services/categorizationService';
-import {CategoryRule, Category} from '../../../types';
+import {CategoryRule, Category, Profile, DriveConfig} from '../../../types';
+import {getMembers} from '../../../db/repositories/memberRepository';
+import {exportBackup, importBackup} from '../services/backupService';
 import {formatAmount} from '../../balances/services/balanceService';
 import {hashPassphrase} from '../../sync/crypto/encryptionService';
 import {
@@ -68,6 +72,18 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
   const [currentRule, setCurrentRule] = useState<Partial<CategoryRule> | null>(null);
   const [partnerFolderId, setPartnerFolderId] = useState('');
   const [currencyModal, setCurrencyModal] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreModal, setRestoreModal] = useState(false);
+  const [restoreJson, setRestoreJson] = useState('');
+  const [selectedColor, setSelectedColor] = useState<string>(Colors.primary);
+  const [hexInput, setHexInput] = useState<string>('');
+
+  const COLOR_PRESETS = [
+    '#2971c4', '#669fe0', '#3730A3', '#7C3AED',
+    '#059669', '#DC2626', '#D97706', '#0891B2',
+    '#DB2777', '#374151',
+  ];
 
   const CURRENCIES = [
     {code: 'USD', name: 'US Dollar'},
@@ -134,6 +150,90 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
     await setConfig('profile', updated);
     store.setProfile(updated);
     setCurrencyModal(false);
+  }
+
+  async function handleExport() {
+    setBackupLoading(true);
+    try {
+      const json = await exportBackup();
+      await Share.share({message: json, title: 'SplitSmart Backup'});
+    } catch (err: any) {
+      Alert.alert('Export Failed', err.message ?? 'Could not export backup.');
+    } finally {
+      setBackupLoading(false);
+    }
+  }
+
+  async function handleRestoreConfirm() {
+    if (!restoreJson.trim()) {
+      Alert.alert('Empty', 'Paste your backup JSON first.');
+      return;
+    }
+    Alert.alert(
+      'Restore Backup',
+      'This will replace ALL current data. This cannot be undone. Continue?',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Restore',
+          style: 'destructive',
+          onPress: async () => {
+            setRestoreLoading(true);
+            try {
+              await importBackup(restoreJson);
+              // Reload Zustand store to reflect the restored data
+              const prof = await getConfig<Profile>('profile');
+              if (prof) {
+                store.setProfile(prof);
+                store.setSetupComplete(true);
+              }
+              const driveCfg = await getConfig<DriveConfig>('drive');
+              if (driveCfg) {
+                store.setDriveConfig(driveCfg);
+              }
+              const syncSt = await getConfig<any>('sync_status');
+              if (syncSt) {
+                store.setSyncStatus(syncSt);
+              }
+              const mems = await getMembers();
+              if (prof) {
+                const myMem = mems.find(m => m.role === prof.myRole);
+                const partnerMem = mems.find(m => m.role !== prof.myRole);
+                if (myMem) {store.setMyMember(myMem);}
+                if (partnerMem) {store.setPartnerMember(partnerMem);}
+              }
+              const cats = await getAllCategories();
+              store.setCategories(cats);
+              setRestoreModal(false);
+              setRestoreJson('');
+              Alert.alert('Restored', 'Your backup has been restored successfully.');
+            } catch (err: any) {
+              Alert.alert('Restore Failed', err.message ?? 'Could not restore backup.');
+            } finally {
+              setRestoreLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  async function handleColorChange(color: string) {
+    await setConfig('primary_color', color);
+    Colors.primary = color;
+    setSelectedColor(color);
+    store.bumpTheme();
+  }
+
+  async function handleHexApply() {
+    const hex = hexInput.trim();
+    const valid = /^#[0-9a-fA-F]{6}$/.test(hex);
+    if (!valid) {
+      Alert.alert('Invalid Color', 'Enter a valid 6-digit hex color, e.g. #FF5733');
+      return;
+    }
+    setHexInput('');
+    await handleColorChange(hex);
   }
 
   async function connectDrive() {
@@ -609,6 +709,33 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
           </View>
         </Modal>
 
+        {/* Appearance Section */}
+        <Text style={styles.label}>APPEARANCE</Text>
+        <Card style={styles.card}>
+          <Text style={styles.settingKey}>Primary Color</Text>
+          <View style={styles.colorSwatches}>
+            {COLOR_PRESETS.map(c => (
+              <TouchableOpacity
+                key={c}
+                style={[styles.colorSwatch, {backgroundColor: c}, selectedColor === c && styles.colorSwatchSelected]}
+                onPress={() => handleColorChange(c)}>
+                {selectedColor === c && <Text style={styles.colorCheck}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.hexRow}>
+            <Input
+              value={hexInput}
+              onChangeText={setHexInput}
+              placeholder="#RRGGBB"
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={7}
+              style={styles.hexInput}
+            />
+            <Button title="Apply" size="sm" onPress={handleHexApply} style={styles.hexApplyBtn} />
+          </View>
+        </Card>
 
         {/* Bluetooth Sync Section */}
         <Text style={styles.label}>BLUETOOTH SYNC</Text>
@@ -702,6 +829,47 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
                 <Button
                   title="Cancel"
                   onPress={() => setBtDeviceModal(false)}
+                  style={styles.modalBtn}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Restore Backup Modal */}
+        <Modal visible={restoreModal} animationType="slide" transparent>
+          <View style={styles.overlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Restore from Backup</Text>
+              <Text style={[styles.settingHint, {color: Colors.danger, marginBottom: Spacing.sm}]}>
+                Warning: this will replace all current data and cannot be undone.
+              </Text>
+              <TextInput
+                style={styles.jsonInput}
+                value={restoreJson}
+                onChangeText={setRestoreJson}
+                placeholder="Paste backup JSON here…"
+                placeholderTextColor={Colors.textMuted}
+                multiline
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <View style={styles.modalButtons}>
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  onPress={() => {
+                    setRestoreModal(false);
+                    setRestoreJson('');
+                  }}
+                  style={styles.modalBtn}
+                  disabled={restoreLoading}
+                />
+                <Button
+                  title="Restore"
+                  variant="danger"
+                  onPress={handleRestoreConfirm}
+                  loading={restoreLoading}
                   style={styles.modalBtn}
                 />
               </View>
@@ -819,6 +987,28 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
           )}
         </Card>
 
+        {/* Data Management */}
+        <Text style={styles.label}>DATA MANAGEMENT</Text>
+        <Card style={styles.card}>
+          <Button
+            title="Export Backup"
+            onPress={handleExport}
+            loading={backupLoading}
+            disabled={backupLoading}
+            style={styles.syncBtn}
+          />
+          <Button
+            title="Restore from Backup"
+            variant="secondary"
+            onPress={() => setRestoreModal(true)}
+            disabled={backupLoading}
+            style={styles.syncBtn}
+          />
+          <Text style={styles.settingHint}>
+            Export a JSON backup of all expenses, budgets, settlements, and categories. To restore, export a backup, then paste the JSON into the restore prompt.
+          </Text>
+        </Card>
+
         {/* Device Info */}
         <Text style={styles.label}>DEVICE</Text>
         <Card style={styles.card}>
@@ -866,6 +1056,33 @@ const styles = StyleSheet.create({
   errorText: {...Typography.caption, color: Colors.danger, marginTop: Spacing.xs},
   navRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   navChevron: {fontSize: 20, color: Colors.textMuted},
+  colorSwatches: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  colorSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorSwatchSelected: {
+    borderWidth: 3,
+    borderColor: Colors.text,
+  },
+  colorCheck: {color: '#fff', fontWeight: '700', fontSize: 16},
+  hexRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  hexInput: {flex: 1},
+  hexApplyBtn: {marginTop: Spacing.sm},
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -935,4 +1152,17 @@ const styles = StyleSheet.create({
   currencyCode: {...Typography.bodyMedium, minWidth: 48},
   currencyName: {...Typography.bodySmall, color: Colors.textMuted, flex: 1, textAlign: 'right'},
   currencyTextSelected: {color: Colors.textOnPrimary},
+  jsonInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    minHeight: 120,
+    maxHeight: 200,
+    color: Colors.text,
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginBottom: Spacing.md,
+    textAlignVertical: 'top',
+  },
 });

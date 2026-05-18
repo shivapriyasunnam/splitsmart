@@ -34,6 +34,10 @@ interface AppState {
   // Loading
   isInitializing: boolean;
 
+  // Theme
+  themeVersion: number;
+  bumpTheme: () => void;
+
   // Actions
   setSetupComplete: (v: boolean) => void;
   setProfile: (p: Profile) => void;
@@ -79,6 +83,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     lastBluetoothError: null,
   },
   isInitializing: true,
+  themeVersion: 0,
+  bumpTheme: () => set(state => ({themeVersion: state.themeVersion + 1})),
 
   setSetupComplete: v => set({isSetupComplete: v}),
   setProfile: p => set({profile: p}),
