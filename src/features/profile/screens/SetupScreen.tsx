@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   content: {padding: Spacing.lg, paddingTop: Spacing.xxl},
   header: {alignItems: 'center', marginBottom: Spacing.xl},
   appName: {fontSize: 40, fontWeight: '800', color: Colors.textOnPrimary, letterSpacing: -1},
-  tagline: {fontSize: 16, color: 'rgba(255,255,255,0.8)', marginTop: Spacing.xs},
+  tagline: {fontSize: 16, color: Colors.textOnPrimaryMuted, marginTop: Spacing.xs},
   card: {borderRadius: BorderRadius.lg, padding: Spacing.lg},
   stepTitle: {...Typography.h2, marginBottom: Spacing.xs},
   stepSubtitle: {...Typography.bodySmall, marginBottom: Spacing.lg, lineHeight: 20},

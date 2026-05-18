@@ -2,6 +2,7 @@ import {v4 as uuidv4} from 'uuid';
 import dayjs from 'dayjs';
 import {getDB} from '../database';
 import {Category, CategoryRule} from '../../types';
+import {resolveCategoryColor} from '../../app/theme';
 
 export async function getAllCategories(): Promise<Category[]> {
   const db = await getDB();
@@ -10,7 +11,8 @@ export async function getAllCategories(): Promise<Category[]> {
   );
   const items: Category[] = [];
   for (let i = 0; i < res.rows.length; i++) {
-    items.push(res.rows.item(i));
+    const row = res.rows.item(i);
+    items.push({...row, color: resolveCategoryColor(row.color)});
   }
   return items;
 }
@@ -19,7 +21,8 @@ export async function getCategoryById(id: string): Promise<Category | null> {
   const db = await getDB();
   const [res] = await db.executeSql('SELECT * FROM categories WHERE id = ?', [id]);
   if (res.rows.length === 0) return null;
-  return res.rows.item(0);
+  const row = res.rows.item(0);
+  return {...row, color: resolveCategoryColor(row.color)};
 }
 
 export async function createCategory(

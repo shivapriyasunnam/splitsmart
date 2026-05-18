@@ -1,11 +1,11 @@
 import {StyleSheet, TextStyle, ViewStyle} from 'react-native';
 
 export const Colors = {
-  primary: '#4F46E5',
+  primary: '#8983fd',
   primaryLight: '#818CF8',
   primaryDark: '#3730A3',
   secondary: '#06B6D4',
-  success: '#10B981',
+  success: '#17a223',
   warning: '#F59E0B',
   danger: '#EF4444',
   dangerLight: '#FEE2E2',
@@ -19,6 +19,12 @@ export const Colors = {
   textMuted: '#94A3B8',
   textOnPrimary: '#FFFFFF',
   overlay: 'rgba(0,0,0,0.5)',
+  shadow: '#000',
+  textOnPrimaryMuted: 'rgba(255,255,255,0.8)',
+  textOnPrimarySubtle: 'rgba(255,255,255,0.6)',
+  // RGB values for use in dynamic rgba() expressions (e.g. chart color functions)
+  primaryRGB: '79, 70, 229',
+  shadowRGB: '0, 0, 0',
 
   // Budget states
   budgetHealthy: '#10B981',
@@ -27,7 +33,7 @@ export const Colors = {
 
   // Category palette
   categoryColors: [
-    '#4F46E5',
+    '#71be91',
     '#06B6D4',
     '#10B981',
     '#F59E0B',
@@ -111,27 +117,41 @@ export const Typography = {
 
 export const Shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   } as ViewStyle,
   md: {
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 3,
   } as ViewStyle,
   lg: {
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 6,
   } as ViewStyle,
 };
+
+/**
+ * Resolves a stored category color value to an actual color string.
+ * Default categories store a palette key like 'palette:0' so they
+ * always reflect the current theme. User-created categories store
+ * a plain hex/rgba string which is returned as-is.
+ */
+export function resolveCategoryColor(color: string): string {
+  if (color.startsWith('palette:')) {
+    const index = parseInt(color.slice(8), 10);
+    return Colors.categoryColors[index] ?? color;
+  }
+  return color;
+}
 
 export const GlobalStyles = StyleSheet.create({
   screen: {

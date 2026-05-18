@@ -76,7 +76,7 @@ export const InsightsScreen: React.FC<Props> = ({navigation}) => {
   const chartConfig = {
     backgroundGradientFrom: Colors.surface,
     backgroundGradientTo: Colors.surface,
-    color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
+    color: (opacity = 1) => `rgba(${Colors.primaryRGB}, ${opacity})`,
     strokeWidth: 2,
     barPercentage: 0.6,
     decimalPlaces: 0,

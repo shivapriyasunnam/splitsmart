@@ -2,19 +2,20 @@ import {v4 as uuidv4} from 'uuid';
 import dayjs from 'dayjs';
 import {getDB} from '../database';
 import {ALL_TABLES, CREATE_INDEXES} from '../schema/tables';
-import {Colors} from '../../app/theme';
 
+// Default categories use palette keys ('palette:N') so the color always resolves
+// dynamically from Colors.categoryColors at read time rather than being baked in.
 const DEFAULT_CATEGORIES = [
-  {name: 'Groceries', color: Colors.categoryColors[0], icon: 'cart', is_default: 1},
-  {name: 'Rent', color: Colors.categoryColors[1], icon: 'home', is_default: 1},
-  {name: 'Dining', color: Colors.categoryColors[2], icon: 'food', is_default: 1},
-  {name: 'Transport', color: Colors.categoryColors[3], icon: 'car', is_default: 1},
-  {name: 'Utilities', color: Colors.categoryColors[4], icon: 'lightning-bolt', is_default: 1},
-  {name: 'Shopping', color: Colors.categoryColors[5], icon: 'shopping', is_default: 1},
-  {name: 'Entertainment', color: Colors.categoryColors[6], icon: 'television', is_default: 1},
-  {name: 'Health', color: Colors.categoryColors[7], icon: 'heart', is_default: 1},
-  {name: 'Travel', color: Colors.categoryColors[8], icon: 'airplane', is_default: 1},
-  {name: 'Other', color: Colors.categoryColors[9], icon: 'dots-horizontal', is_default: 1},
+  {name: 'Groceries', color: 'palette:0', icon: 'cart', is_default: 1},
+  {name: 'Rent', color: 'palette:1', icon: 'home', is_default: 1},
+  {name: 'Dining', color: 'palette:2', icon: 'food', is_default: 1},
+  {name: 'Transport', color: 'palette:3', icon: 'car', is_default: 1},
+  {name: 'Utilities', color: 'palette:4', icon: 'lightning-bolt', is_default: 1},
+  {name: 'Shopping', color: 'palette:5', icon: 'shopping', is_default: 1},
+  {name: 'Entertainment', color: 'palette:6', icon: 'television', is_default: 1},
+  {name: 'Health', color: 'palette:7', icon: 'heart', is_default: 1},
+  {name: 'Travel', color: 'palette:8', icon: 'airplane', is_default: 1},
+  {name: 'Other', color: 'palette:9', icon: 'dots-horizontal', is_default: 1},
 ];
 
 const DEFAULT_RULES = [
@@ -50,7 +51,28 @@ export async function runMigrations(): Promise<void> {
 
   if (count === 0) {
     await seedCategories(database);
+  } else {
+    await migrateCategoryColorsToPaletteKeys(database);
   }
+}
+
+// One-time migration: replace any baked-in hex color values on default categories
+// with palette keys so they dynamically reflect the theme going forward.
+async function migrateCategoryColorsToPaletteKeys(database: any): Promise<void> {
+  const [migrated] = await database.executeSql(
+    "SELECT value_json FROM app_config WHERE key = 'migration_v2_palette_colors'",
+  );
+  if (migrated.rows.length > 0) return;
+
+  for (let i = 0; i < DEFAULT_CATEGORIES.length; i++) {
+    await database.executeSql(
+      'UPDATE categories SET color = ? WHERE is_default = 1 AND name = ?',
+      [`palette:${i}`, DEFAULT_CATEGORIES[i].name],
+    );
+  }
+  await database.executeSql(
+    "INSERT INTO app_config (key, value_json) VALUES ('migration_v2_palette_colors', 'true')",
+  );
 }
 
 async function seedCategories(database: any): Promise<void> {

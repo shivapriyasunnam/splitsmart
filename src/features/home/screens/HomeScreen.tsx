@@ -192,7 +192,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                     width={CHART_WIDTH}
                     height={180}
                     chartConfig={{
-                      color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+                      color: (opacity = 1) => `rgba(${Colors.shadowRGB},${opacity})`,
                       backgroundGradientFrom: Colors.surface,
                       backgroundGradientTo: Colors.surface,
                     }}
@@ -241,9 +241,9 @@ const styles = StyleSheet.create({
     ...Shadows.md,
   },
   primaryContent: {padding: Spacing.lg},
-  primaryLabel: {...Typography.body, color: 'rgba(255,255,255,0.8)', marginBottom: 4},
+  primaryLabel: {...Typography.body, color: Colors.textOnPrimaryMuted, marginBottom: 4},
   primaryAmount: {...Typography.h1, color: Colors.surface, fontSize: 36},
-  primarySub: {...Typography.caption, color: 'rgba(255,255,255,0.6)', marginTop: 4},
+  primarySub: {...Typography.caption, color: Colors.textOnPrimarySubtle, marginTop: 4},
   section: {
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: {width: 0, height: 3},
     shadowOpacity: 0.25,
     shadowRadius: 6,

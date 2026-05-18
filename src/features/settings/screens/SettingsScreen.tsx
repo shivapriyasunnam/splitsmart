@@ -494,7 +494,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
                     key={c.id}
                     style={[styles.catChip, currentRule?.category_id === c.id && {backgroundColor: c.color}]}
                     onPress={() => setCurrentRule(r => ({...r, category_id: c.id}))}>
-                    <Text style={[styles.catChipText, currentRule?.category_id === c.id && {color: '#fff'}]}>
+                    <Text style={[styles.catChipText, currentRule?.category_id === c.id && {color: Colors.textOnPrimary}]}>
                       {c.name}
                     </Text>
                   </TouchableOpacity>
@@ -507,7 +507,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
                     key={tf}
                     style={[styles.radioChip, currentRule?.target_field === tf && styles.radioChipSelected]}
                     onPress={() => setCurrentRule(r => ({...r, target_field: tf}))}>
-                    <Text style={[styles.radioChipText, currentRule?.target_field === tf && {color: '#fff'}]}>
+                    <Text style={[styles.radioChipText, currentRule?.target_field === tf && {color: Colors.textOnPrimary}]}>
                       {tf}
                     </Text>
                   </TouchableOpacity>
@@ -925,5 +925,5 @@ const styles = StyleSheet.create({
   currencyOptionSelected: {backgroundColor: Colors.primary},
   currencyCode: {...Typography.bodyMedium, minWidth: 48},
   currencyName: {...Typography.bodySmall, color: Colors.textMuted, flex: 1, textAlign: 'right'},
-  currencyTextSelected: {color: '#fff'},
+  currencyTextSelected: {color: Colors.textOnPrimary},
 });

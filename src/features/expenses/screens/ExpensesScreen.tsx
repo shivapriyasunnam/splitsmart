@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  totalLabel: {fontSize: 14, color: 'rgba(255,255,255,0.8)', fontWeight: '500'},
+  totalLabel: {fontSize: 14, color: Colors.textOnPrimaryMuted, fontWeight: '500'},
   totalAmount: {fontSize: 22, fontWeight: '700', color: Colors.textOnPrimary},
   list: {paddingHorizontal: Spacing.md, paddingBottom: 100},
   expenseRow: {
