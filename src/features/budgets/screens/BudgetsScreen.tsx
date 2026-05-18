@@ -32,7 +32,7 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
   const [editAmount, setEditAmount] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const currency = profile?.currency ?? 'INR';
+  const currency = profile?.currency ?? 'CAD';
 
   const loadData = useCallback(async () => {
     setLoading(true);

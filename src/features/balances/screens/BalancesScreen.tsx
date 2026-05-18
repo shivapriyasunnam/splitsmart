@@ -83,7 +83,7 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
     }
   }
 
-  const currency = profile?.currency ?? 'INR';
+  const currency = profile?.currency ?? 'CAD';
 
   function getBalanceLabel(): {label: string; color: string; amount: number} {
     if (!balance) return {label: 'Loading...', color: Colors.text, amount: 0};

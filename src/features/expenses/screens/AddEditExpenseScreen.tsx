@@ -114,7 +114,7 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
         title: title.trim(),
         note: note.trim() || null,
         amount_minor: amountMinor,
-        currency: profile?.currency ?? 'INR',
+        currency: profile?.currency ?? 'CAD',
         expense_date: expenseDate,
         category_id: categoryId,
         paid_by_member_id: paidByMemberId,

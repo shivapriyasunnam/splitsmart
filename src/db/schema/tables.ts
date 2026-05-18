@@ -41,7 +41,7 @@ export const CREATE_EXPENSES_TABLE = `
     title TEXT NOT NULL,
     note TEXT,
     amount_minor INTEGER NOT NULL,
-    currency TEXT NOT NULL DEFAULT 'INR',
+    currency TEXT NOT NULL DEFAULT 'CAD',
     expense_date TEXT NOT NULL,
     category_id TEXT NOT NULL,
     paid_by_member_id TEXT NOT NULL,

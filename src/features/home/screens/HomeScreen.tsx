@@ -1,6 +1,7 @@
 import React, {useState, useEffect, useCallback} from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import dayjs from 'dayjs';
 import {PieChart} from 'react-native-chart-kit';
 import {Card, LoadingState, ProgressBar} from '../../../components';
@@ -28,7 +29,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const [budgetRows, setBudgetRows] = useState<BudgetRow[]>([]);
 
   const monthKey = dayjs().format('YYYY-MM');
-  const currency = profile?.currency ?? 'INR';
+  const currency = profile?.currency ?? 'CAD';
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -93,7 +94,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             <Text style={styles.subtitle}>{dayjs().format('MMMM YYYY')}</Text>
           </View>
           <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
-            <Text style={styles.settingsIcon}>⚙️</Text>
+            <FontAwesome name="cog" size={20} color={Colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -212,7 +213,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         style={styles.fab}
         onPress={() => navigation.navigate('AddExpense')}
         activeOpacity={0.85}>
-        <Text style={styles.fabIcon}>+</Text>
+        <FontAwesome name="plus" size={22} color={Colors.surface} />
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -232,7 +233,6 @@ const styles = StyleSheet.create({
   greeting: {...Typography.h2},
   subtitle: {...Typography.body, color: Colors.textMuted},
   settingsBtn: {padding: Spacing.sm},
-  settingsIcon: {fontSize: 22},
   primaryCard: {
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
@@ -317,10 +317,5 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 3},
     shadowOpacity: 0.25,
     shadowRadius: 6,
-  },
-  fabIcon: {
-    fontSize: 28,
-    color: Colors.surface,
-    lineHeight: 32,
   },
 });

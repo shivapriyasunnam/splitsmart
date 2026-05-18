@@ -125,7 +125,7 @@ export function computeBalances(
 /**
  * Format a balance amount as a currency string.
  */
-export function formatAmount(amountMinor: number, currency: string = 'INR'): string {
+export function formatAmount(amountMinor: number, currency: string = 'CAD'): string {
   const major = amountMinor / 100;
   if (currency === 'INR') {
     return `₹${major.toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 2})}`;

@@ -22,7 +22,7 @@ export const SetupScreen: React.FC = () => {
   const [myName, setMyName] = useState('');
   const [partnerName, setPartnerName] = useState('');
   const [myRole, setMyRole] = useState<MemberRole>('A');
-  const [currency, setCurrency] = useState('INR');
+  const [currency, setCurrency] = useState('CAD');
   const [passphrase, setPassphrase] = useState('');
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [loading, setLoading] = useState(false);

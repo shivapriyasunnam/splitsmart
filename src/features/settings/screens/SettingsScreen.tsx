@@ -67,6 +67,25 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
   const [editRuleModal, setEditRuleModal] = useState(false);
   const [currentRule, setCurrentRule] = useState<Partial<CategoryRule> | null>(null);
   const [partnerFolderId, setPartnerFolderId] = useState('');
+  const [currencyModal, setCurrencyModal] = useState(false);
+
+  const CURRENCIES = [
+    {code: 'USD', name: 'US Dollar'},
+    {code: 'CAD', name: 'Canadian Dollar'},
+    {code: 'EUR', name: 'Euro'},
+    {code: 'GBP', name: 'British Pound'},
+    {code: 'INR', name: 'Indian Rupee'},
+    {code: 'AUD', name: 'Australian Dollar'},
+    {code: 'JPY', name: 'Japanese Yen'},
+    {code: 'CNY', name: 'Chinese Yuan'},
+    {code: 'SGD', name: 'Singapore Dollar'},
+    {code: 'CHF', name: 'Swiss Franc'},
+    {code: 'MXN', name: 'Mexican Peso'},
+    {code: 'BRL', name: 'Brazilian Real'},
+    {code: 'KRW', name: 'South Korean Won'},
+    {code: 'AED', name: 'UAE Dirham'},
+    {code: 'NZD', name: 'New Zealand Dollar'},
+  ];
 
   // ─── Bluetooth state ─────────────────────────────────────────────────────
   const [btEnabled, setBtEnabled] = useState<boolean | null>(null);
@@ -107,6 +126,14 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
     setBtLastTransfer(btCfg.lastTransferAt);
     const syncStatus = await getConfig<any>('sync_status');
     setBtLastError(syncStatus?.lastBluetoothError ?? null);
+  }
+
+  async function handleCurrencyChange(code: string) {
+    if (!profile) return;
+    const updated = {...profile, currency: code};
+    await setConfig('profile', updated);
+    store.setProfile(updated);
+    setCurrencyModal(false);
   }
 
   async function connectDrive() {
@@ -400,7 +427,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
 
   if (section === 'rules') {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.sectionHeader}>
           <TouchableOpacity onPress={() => setSection('main')}>
             <Text style={styles.backLink}>← Settings</Text>
@@ -507,10 +534,10 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
   // ─── Main Settings ────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         {/* Profile Section */}
-        <Text style={styles.label}>PROFILE</Text>
+        <Text style={styles.firstLabel}>PROFILE</Text>
         <Card style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.settingKey}>Your Name</Text>
@@ -527,11 +554,53 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
             <Text style={styles.settingValue}>Person {profile?.myRole ?? '—'}</Text>
           </View>
           <Divider />
-          <View style={styles.row}>
+          <TouchableOpacity style={styles.row} onPress={() => setCurrencyModal(true)}>
             <Text style={styles.settingKey}>Currency</Text>
-            <Text style={styles.settingValue}>{profile?.currency ?? '—'}</Text>
-          </View>
+            <View style={styles.currencyRowRight}>
+              <Text style={styles.currencyValueText}>{profile?.currency ?? '—'}</Text>
+              <Text style={styles.navChevron}>›</Text>
+            </View>
+          </TouchableOpacity>
         </Card>
+
+        {/* Currency Picker Modal */}
+        <Modal visible={currencyModal} animationType="slide" transparent>
+          <View style={styles.overlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Select Currency</Text>
+              <ScrollView style={{maxHeight: 400}}>
+                {CURRENCIES.map(c => (
+                  <TouchableOpacity
+                    key={c.code}
+                    style={[
+                      styles.currencyOption,
+                      profile?.currency === c.code && styles.currencyOptionSelected,
+                    ]}
+                    onPress={() => handleCurrencyChange(c.code)}>
+                    <Text style={[
+                      styles.currencyCode,
+                      profile?.currency === c.code && styles.currencyTextSelected,
+                    ]}>
+                      {c.code}
+                    </Text>
+                    <Text style={[
+                      styles.currencyName,
+                      profile?.currency === c.code && styles.currencyTextSelected,
+                    ]}>
+                      {c.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => setCurrencyModal(false)}
+                style={{marginTop: Spacing.md}}
+              />
+            </View>
+          </View>
+        </Modal>
 
         {/* Drive Section */}
         <Text style={styles.label}>GOOGLE DRIVE</Text>
@@ -779,6 +848,7 @@ const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
   content: {padding: Spacing.md, paddingBottom: Spacing.xl},
   label: {...Typography.label, marginTop: Spacing.lg, marginBottom: Spacing.sm},
+  firstLabel: {...Typography.label, marginTop: Spacing.xs, marginBottom: Spacing.sm},
   card: {marginBottom: Spacing.xs, ...Shadows.sm},
   row: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm},
   settingKey: {...Typography.body},
@@ -841,4 +911,19 @@ const styles = StyleSheet.create({
   },
   deviceName: {...Typography.bodyMedium},
   deviceAddress: {...Typography.caption, color: Colors.textMuted},
+  currencyRowRight: {flexDirection: 'row', alignItems: 'center', gap: 4},
+  currencyValueText: {...Typography.bodySmall, textAlign: 'right'},
+  currencyOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    marginBottom: 2,
+  },
+  currencyOptionSelected: {backgroundColor: Colors.primary},
+  currencyCode: {...Typography.bodyMedium, minWidth: 48},
+  currencyName: {...Typography.bodySmall, color: Colors.textMuted, flex: 1, textAlign: 'right'},
+  currencyTextSelected: {color: '#fff'},
 });

@@ -23,7 +23,7 @@ export const InsightsScreen: React.FC<Props> = ({navigation}) => {
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format('YYYY-MM'));
   const [budgetRows, setBudgetRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const currency = profile?.currency ?? 'INR';
+  const currency = profile?.currency ?? 'CAD';
 
   const loadData = useCallback(async () => {
     setLoading(true);

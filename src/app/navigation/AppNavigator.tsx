@@ -1,8 +1,9 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {Text, StyleSheet} from 'react-native';
+import {StyleSheet} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import {Colors, Typography} from '../theme';
 
 import {HomeScreen} from '../../features/home/screens/HomeScreen';
@@ -71,22 +72,7 @@ function ExpensesNavigator() {
   );
 }
 
-interface TabIconProps {
-  focused: boolean;
-  icon: string;
-}
 
-function TabIcon({focused, icon}: TabIconProps) {
-  return (
-    <Text
-      style={[
-        styles.tabIcon,
-        {color: focused ? Colors.primary : Colors.textMuted},
-      ]}>
-      {icon}
-    </Text>
-  );
-}
 
 export function AppNavigator() {
   const insets = useSafeAreaInsets();
@@ -108,7 +94,9 @@ export function AppNavigator() {
         component={HomeNavigator}
         options={{
           headerShown: false,
-          tabBarIcon: ({focused}) => <TabIcon focused={focused} icon="🏠" />,
+        tabBarIcon: ({color, size}) => (
+            <FontAwesome name="home" size={size - 2} color={color} />
+          ),
         }}
       />
       <Tab.Screen
@@ -116,14 +104,18 @@ export function AppNavigator() {
         component={ExpensesNavigator}
         options={{
           headerShown: false,
-          tabBarIcon: ({focused}) => <TabIcon focused={focused} icon="💳" />,
+        tabBarIcon: ({color, size}) => (
+            <FontAwesome name="credit-card" size={size - 2} color={color} />
+          ),
         }}
       />
       <Tab.Screen
         name="Balances"
         component={BalancesScreen}
         options={{
-          tabBarIcon: ({focused}) => <TabIcon focused={focused} icon="⚖️" />,
+          tabBarIcon: ({color, size}) => (
+            <FontAwesome name="balance-scale-left" size={size - 2} color={color} />
+          ),
           title: 'Balances',
         }}
       />
@@ -131,7 +123,9 @@ export function AppNavigator() {
         name="Budgets"
         component={BudgetsScreen}
         options={{
-          tabBarIcon: ({focused}) => <TabIcon focused={focused} icon="🎯" />,
+          tabBarIcon: ({color, size}) => (
+            <FontAwesome name="wallet" size={size - 2} color={color} />
+          ),
           title: 'Budgets',
         }}
       />
@@ -139,7 +133,9 @@ export function AppNavigator() {
         name="Insights"
         component={InsightsScreen}
         options={{
-          tabBarIcon: ({focused}) => <TabIcon focused={focused} icon="📊" />,
+          tabBarIcon: ({color, size}) => (
+            <FontAwesome name="chart-bar" size={size - 2} color={color} />
+          ),
           title: 'Insights',
         }}
       />
@@ -156,9 +152,6 @@ const styles = StyleSheet.create({
   tabLabel: {
     ...Typography.caption,
     fontSize: 10,
-  },
-  tabIcon: {
-    fontSize: 20,
   },
 });
 

@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import dayjs from 'dayjs';
 import {Card, EmptyState, LoadingState, Button} from '../../../components';
 import {Colors, Typography, Spacing, BorderRadius, Shadows} from '../../../app/theme';
@@ -137,7 +138,7 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
         <View style={styles.totalContent}>
           <Text style={styles.totalLabel}>Total this month</Text>
           <Text style={styles.totalAmount}>
-            {formatAmount(monthlyTotal, profile?.currency ?? 'INR')}
+            {formatAmount(monthlyTotal, profile?.currency ?? 'CAD')}
           </Text>
         </View>
       </Card>
@@ -172,7 +173,7 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
         style={styles.fab}
         onPress={() => navigation.navigate('AddExpense')}
         activeOpacity={0.85}>
-        <Text style={styles.fabIcon}>+</Text>
+        <FontAwesome name="plus" size={22} color={Colors.textOnPrimary} />
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -240,5 +241,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...Shadows.lg,
   },
-  fabIcon: {fontSize: 28, color: Colors.textOnPrimary, lineHeight: 32},
 });
