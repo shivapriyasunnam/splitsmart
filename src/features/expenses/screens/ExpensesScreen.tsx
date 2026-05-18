@@ -188,8 +188,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   monthArrow: {padding: Spacing.sm},
   monthArrowDisabled: {opacity: 0.3},
