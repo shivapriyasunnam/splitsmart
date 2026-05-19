@@ -47,11 +47,21 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({children}) =
         store.setSyncStatus(syncStatus);
       }
 
-      // Load members
+      // Load members — prefer canonical IDs stored after Bluetooth pairing,
+      // fall back to role-based lookup for fresh installs.
       const members = await getMembers();
       if (profile) {
-        const myMember = members.find(m => m.role === profile.myRole);
-        const partnerMember = members.find(m => m.role !== profile.myRole);
+        const savedMyMemberId = await getConfig<string>('my_member_id');
+        const canonicalPartnerId = await getConfig<string>('canonical_partner_member_id');
+
+        const myMember =
+          (savedMyMemberId ? members.find(m => m.id === savedMyMemberId) : null) ??
+          members.find(m => m.role === profile.myRole);
+
+        const partnerMember =
+          (canonicalPartnerId ? members.find(m => m.id === canonicalPartnerId) : null) ??
+          members.find(m => m.role !== profile.myRole);
+
         if (myMember) store.setMyMember(myMember);
         if (partnerMember) store.setPartnerMember(partnerMember);
       }

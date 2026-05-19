@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useRef} from 'react';
+import React, {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import {View, Text, StyleSheet, ScrollView, Alert, Modal, KeyboardAvoidingView, Platform, TextInput} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Card, LoadingState, Button, Divider} from '../../../components';
@@ -17,7 +17,8 @@ interface Props {
 }
 
 export const BalancesScreen: React.FC<Props> = ({navigation}) => {
-  const {myMember, partnerMember, profile, syncStatus} = useAppStore();
+  const {myMember, partnerMember, profile, syncStatus, themeVersion} = useAppStore();
+  const styles = useMemo(() => makeStyles(), [themeVersion]);
   const [balance, setBalance] = useState<BalanceSummary | null>(null);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,7 +283,7 @@ export const BalancesScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = () => StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
   content: {padding: Spacing.md, paddingBottom: Spacing.sm},
   mainCard: {

@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import FontAwesome from 'react-native-vector-icons/FontAwesome5';
@@ -22,7 +22,8 @@ interface Props {
 }
 
 export const HomeScreen: React.FC<Props> = ({navigation}) => {
-  const {myMember, partnerMember, profile, categories, syncStatus} = useAppStore();
+  const {myMember, partnerMember, profile, categories, syncStatus, themeVersion} = useAppStore();
+  const styles = useMemo(() => makeStyles(), [themeVersion]);
   const [loading, setLoading] = useState(true);
   const [monthlyTotal, setMonthlyTotal] = useState(0);
   const [netBalance, setNetBalance] = useState(0);
@@ -256,7 +257,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = () => StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
   scroll: {paddingBottom: Spacing.sm},
   header: {
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  primaryLabel: {...Typography.h3, color: Colors.primary},
+  primaryLabel: {...Typography.h3, color: '#000000'},
   primaryAddBtn: {
     width: 30,
     height: 30,
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     paddingBottom: 4,
   },
-  sectionTitle: {...Typography.h3, color: Colors.primary},
+  sectionTitle: {...Typography.h3, color: '#000000'},
   seeAll: {...Typography.caption, color: Colors.primary},
   balanceRow: {
     flexDirection: 'row',

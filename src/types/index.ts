@@ -153,6 +153,9 @@ export interface SyncPackage {
   createdAt: string;
   sequenceRange: { from: number; to: number };
   changes: SyncChange[];
+  /** The sender's own member ID. Used by the receiver to establish the canonical
+   *  partner member ID so both devices converge on the same UUIDs after first sync. */
+  senderMemberId?: string;
 }
 
 export interface SyncChange {

@@ -4,6 +4,7 @@ import {
   hasPackageBeenApplied,
   recordPackageApplied,
 } from '../../../db/repositories/syncRepository';
+import {setConfig} from '../../../db/repositories/configRepository';
 import dayjs from 'dayjs';
 
 // react-native-sqlite-storage does NOT await async transaction callbacks —
@@ -60,6 +61,15 @@ export async function mergePackage(pkg: SyncPackage): Promise<void> {
   }
 
   await recordPackageApplied(pkg.packageId, pkg.sourceDeviceId);
+
+  // Pairing: if the sender included their own member ID, store it as the
+  // canonical partner member ID. This lets AppProvider and balance screens
+  // resolve the correct partner UUID across devices that generated their own
+  // UUIDs independently during setup.
+  if (pkg.senderMemberId) {
+    await setConfig('canonical_partner_member_id', pkg.senderMemberId);
+    console.log(`[mergePackage] canonical_partner_member_id set to ${pkg.senderMemberId}`);
+  }
 }
 
 async function buildChangeStatements(db: any, change: SyncChange): Promise<SqlStatement[]> {

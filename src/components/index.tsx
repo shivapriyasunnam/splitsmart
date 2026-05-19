@@ -1,4 +1,5 @@
 import React from 'react';
+export {default as AppLogo} from './AppLogo';
 import {
   View,
   Text,

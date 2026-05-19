@@ -26,7 +26,7 @@ import {
   setupDriveFolders,
 } from '../../sync/drive/driveService';
 import {performUpload, performSync, runEODJob} from '../../sync/drive/driveOps';
-import {getConfig, setConfig} from '../../../db/repositories/configRepository';
+import {getConfig, setConfig, deleteConfig} from '../../../db/repositories/configRepository';
 import {
   getCategoryRules,
   createCategoryRule,
@@ -79,10 +79,24 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
   const [hexInput, setHexInput] = useState<string>('');
 
   const COLOR_PRESETS = [
-    '#2971c4', '#669fe0', '#3730A3', '#7C3AED',
-    '#059669', '#DC2626', '#D97706', '#0891B2',
-    '#DB2777', '#374151',
-  ];
+  '#E27D60', // Terracotta Orange
+  '#59AF7F', // Forest Green
+  '#C18157', // Camel Brown
+  '#2B5C6B', // Deep Teal
+  '#C38D9E', // Dusty Rose
+  '#7164ED', // Indigo
+  '#E06549', // Vermilion Orange
+  '#C4B405', // Mustard Yellow
+  '#26B8D2', // Cyan / Bright Aqua
+  '#E33CC7', // Magenta Pink
+  '#252525', // Near Black / Charcoal
+  '#CD0E6A', // Deep Pink (Amaranth)
+  '#800020', // Burgundy
+  '#555575', // Slate Lavender
+  '#AE73C9', // Lavender Purple (Wisteria)
+  '#FF8E72', // Salmon Coral
+
+];
 
   const CURRENCIES = [
     {code: 'USD', name: 'US Dollar'},
@@ -456,6 +470,16 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
         setBtLastError(null);
         const s = await getConfig<any>('sync_status');
         if (s) store.setSyncStatus(s);
+
+        // Refresh partner member in store now that canonical_partner_member_id may
+        // have been written by the merge step during this receive.
+        const canonicalPartnerId = await getConfig<string>('canonical_partner_member_id');
+        if (canonicalPartnerId) {
+          const updatedMembers = await getMembers();
+          const partner = updatedMembers.find(m => m.id === canonicalPartnerId);
+          if (partner) store.setPartnerMember(partner);
+        }
+
         Alert.alert('Received', `Imported ${result.imported ?? 0} package(s) from partner.`);
       } else {
         setBtLastError(result.error ?? null);
@@ -903,7 +927,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
         )}
 
         {/* Sync Section */}
-        <Text style={styles.label}>SYNC</Text>
+        {/* <Text style={styles.label}>SYNC</Text>
         <Card style={styles.card}>
           <Button
             title="Upload Now"
@@ -953,7 +977,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
               <Text style={styles.errorText}>Sync error: {syncStatus.lastSyncError}</Text>
             </>
           )}
-        </Card>
+        </Card> */}
 
         {/* Data Management */}
         <Text style={styles.label}>DATA MANAGEMENT</Text>
@@ -979,7 +1003,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
         </Card>
 
         {/* Device Info */}
-        <Text style={styles.label}>DEVICE</Text>
+        {/* <Text style={styles.label}>DEVICE</Text>
         <Card style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.settingKey}>Device ID</Text>
@@ -991,7 +1015,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
           <Text style={styles.settingHint}>
             Share this ID with your partner for sync setup.
           </Text>
-        </Card>
+        </Card> */}
 
         {/* Auto-Categorization */}
         <Text style={styles.label}>AUTO-CATEGORIZATION</Text>
@@ -1005,6 +1029,30 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
           <Text style={styles.settingHint}>
             {rules.length} rule{rules.length !== 1 ? 's' : ''} configured
           </Text>
+        </Card>
+
+        {/* Sign Out */}
+        <Text style={styles.label}>ACCOUNT</Text>
+        <Card style={styles.card}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() =>
+              Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                {text: 'Cancel', style: 'cancel'},
+                {
+                  text: 'Sign Out',
+                  style: 'destructive',
+                  onPress: async () => {
+                    await deleteConfig('profile');
+                    await deleteConfig('my_member_id');
+                    await deleteConfig('canonical_partner_member_id');
+                    store.logout();
+                  },
+                },
+              ])
+            }>
+            <Text style={[styles.settingKey, {color: Colors.danger}]}>Sign Out</Text>
+          </TouchableOpacity>
         </Card>
       </ScrollView>
     </SafeAreaView>

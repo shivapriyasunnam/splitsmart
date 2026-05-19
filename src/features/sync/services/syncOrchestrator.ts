@@ -36,6 +36,7 @@ const SyncPackageSchema = z.object({
     to: z.number(),
   }),
   changes: z.array(SyncChangeSchema),
+  senderMemberId: z.string().optional(),
 });
 
 // ─── Inbound processing ───────────────────────────────────────────────────────

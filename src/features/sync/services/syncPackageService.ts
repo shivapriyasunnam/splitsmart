@@ -15,6 +15,7 @@ export function buildSyncPackage(
   changes: ChangeLogEntry[],
   sourceDeviceId: string,
   pairId: string,
+  senderMemberId?: string,
 ): SyncPackage {
   if (changes.length === 0) {
     return {
@@ -24,6 +25,7 @@ export function buildSyncPackage(
       createdAt: dayjs().toISOString(),
       sequenceRange: {from: 0, to: 0},
       changes: [],
+      ...(senderMemberId ? {senderMemberId} : {}),
     };
   }
 
@@ -44,6 +46,7 @@ export function buildSyncPackage(
     createdAt: dayjs().toISOString(),
     sequenceRange: {from: fromSeq, to: toSeq},
     changes: syncChanges,
+    ...(senderMemberId ? {senderMemberId} : {}),
   };
 }
 
@@ -128,11 +131,12 @@ export async function createRawBluetoothSyncPackage(
   sourceDeviceId: string,
   pairId: string,
   lastSentSequence: number,
+  senderMemberId?: string,
 ): Promise<{payload: string; packageId: string; sequenceTo: number} | null> {
   const changes = await getChangesAfterSequence(lastSentSequence);
   if (changes.length === 0) return null;
 
-  const pkg = buildSyncPackage(changes, sourceDeviceId, pairId);
+  const pkg = buildSyncPackage(changes, sourceDeviceId, pairId, senderMemberId);
   return {
     payload: JSON.stringify(pkg),
     packageId: pkg.packageId,

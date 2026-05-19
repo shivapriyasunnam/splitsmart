@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Alert,
   Modal,
   FlatList,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
@@ -31,7 +32,8 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
   const expenseId: string | undefined = route.params?.expenseId;
   const isEdit = !!expenseId;
 
-  const {categories, myMember, partnerMember, profile} = useAppStore();
+  const {categories, myMember, partnerMember, profile, themeVersion} = useAppStore();
+  const styles = useMemo(() => makeStyles(), [themeVersion]);
 
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
@@ -151,7 +153,11 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
       <KeyboardAvoidingView
         style={{flex: 1}}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
         <Input
           label="Title *"
           value={title}
@@ -267,7 +273,7 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
           loading={loading}
           style={styles.saveBtn}
         />
-      </View>
+      </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Category Picker Modal */}
@@ -335,8 +341,9 @@ export const AddEditExpenseScreen: React.FC<Props> = ({navigation, route}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = () => StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
+  scroll: {flex: 1},
   content: {padding: Spacing.md, paddingBottom: Spacing.xl},
   fieldGroup: {marginBottom: Spacing.md},
   fieldLabel: {...Typography.label, marginBottom: Spacing.xs},

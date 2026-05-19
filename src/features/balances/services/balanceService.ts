@@ -76,20 +76,34 @@ export function computeBalances(
   let partnerShare = 0;
   let totalSharedSpend = 0;
 
+  // Each device generates its own UUIDs during setup, so after syncing the
+  // members table contains 4 rows (2 per device). Passing all 4 to
+  // computeMemberShares would divide equal-split expenses by 4 instead of 2.
+  // Build a minimal 2-member list with the correct IDs so the split math
+  // always uses the right divisor regardless of DB state.
+  const pairMembers: Member[] = [
+    {id: myMemberId,      name: '', role: 'A', created_at: '', updated_at: ''},
+    {id: partnerMemberId, name: '', role: 'B', created_at: '', updated_at: ''},
+  ];
+
   for (const expense of expenses) {
     if (expense.deleted_at) continue;
     totalSharedSpend += expense.amount_minor;
 
-    const shares = computeMemberShares(expense, members);
+    const shares = computeMemberShares(expense, pairMembers);
     const myShareForExpense = shares.find(s => s.memberId === myMemberId)?.share ?? 0;
     const partnerShareForExpense = shares.find(s => s.memberId === partnerMemberId)?.share ?? 0;
 
     myShare += myShareForExpense;
     partnerShare += partnerShareForExpense;
 
+    // Use !== myMemberId rather than === partnerMemberId: synced expenses carry
+    // the partner's device-local UUID which may differ from our partnerMemberId
+    // placeholder. In a 2-person tracker any expense not paid by me was paid by
+    // the partner.
     if (expense.paid_by_member_id === myMemberId) {
       totalPaidByMe += expense.amount_minor;
-    } else if (expense.paid_by_member_id === partnerMemberId) {
+    } else {
       totalPaidByPartner += expense.amount_minor;
     }
   }
@@ -99,13 +113,14 @@ export function computeBalances(
   // negative = I owe (partner overpaid for me)
   let netBalance = totalPaidByMe - myShare;
 
-  // Apply settlements
+  // Apply settlements — same UUID-agnostic logic: settlement not paid by me
+  // must have been paid by the partner.
   for (const settlement of settlements) {
     if (settlement.deleted_at) continue;
     if (settlement.paid_by_member_id === myMemberId) {
       // I paid partner → reduces what I owe (increases net toward 0 when negative)
       netBalance += settlement.amount_minor;
-    } else if (settlement.paid_by_member_id === partnerMemberId) {
+    } else {
       // Partner paid me → reduces what they owe me (decreases net toward 0 when positive)
       netBalance -= settlement.amount_minor;
     }

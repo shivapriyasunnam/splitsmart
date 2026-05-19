@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,8 @@ interface Props {
 }
 
 export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
-  const {categories, myMember, partnerMember, profile} = useAppStore();
+  const {categories, myMember, partnerMember, profile, themeVersion} = useAppStore();
+  const styles = useMemo(() => makeStyles(), [themeVersion]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format('YYYY-MM'));
@@ -183,7 +184,7 @@ export const ExpensesScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = () => StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
   monthBar: {
     flexDirection: 'row',

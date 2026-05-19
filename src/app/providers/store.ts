@@ -49,6 +49,7 @@ interface AppState {
   setBluetoothSyncConfig: (b: Partial<BluetoothSyncConfig>) => void;
   setSyncStatus: (s: Partial<SyncStatus>) => void;
   setInitializing: (v: boolean) => void;
+  logout: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -99,4 +100,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSyncStatus: s =>
     set(state => ({syncStatus: {...state.syncStatus, ...s}})),
   setInitializing: v => set({isInitializing: v}),
+  logout: () => set({isSetupComplete: false, profile: null, myMember: null, partnerMember: null}),
 }));

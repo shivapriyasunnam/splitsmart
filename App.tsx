@@ -9,7 +9,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import {AppProvider} from './src/app/providers/AppProvider';
 import {useAppStore} from './src/app/providers/store';
 import {AppNavigator} from './src/app/navigation/AppNavigator';
-import {SetupScreen} from './src/features/profile/screens/SetupScreen';
+import {LoginScreen} from './src/features/auth/screens/LoginScreen';
 import {Colors} from './src/app/theme';
 import {runEODCatchup} from './src/features/sync/jobs/eodCatchup';
 
@@ -31,7 +31,7 @@ function AppContent() {
   }
 
   if (!isSetupComplete) {
-    return <SetupScreen />;
+    return <LoginScreen />;
   }
 
   return (

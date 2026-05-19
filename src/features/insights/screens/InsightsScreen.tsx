@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
@@ -19,7 +19,8 @@ interface Props {
 }
 
 export const InsightsScreen: React.FC<Props> = ({navigation}) => {
-  const {categories, profile} = useAppStore();
+  const {categories, profile, themeVersion} = useAppStore();
+  const styles = useMemo(() => makeStyles(), [themeVersion]);
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format('YYYY-MM'));
   const [budgetRows, setBudgetRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -220,7 +221,7 @@ export const InsightsScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = () => StyleSheet.create({
   container: {flex: 1, backgroundColor: Colors.background},
   monthBar: {
     flexDirection: 'row',

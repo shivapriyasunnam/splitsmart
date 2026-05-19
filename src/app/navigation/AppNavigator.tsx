@@ -5,6 +5,7 @@ import {StyleSheet} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import {Colors, Typography} from '../theme';
+import {useAppStore} from '../../app/providers/store';
 
 import {HomeScreen} from '../../features/home/screens/HomeScreen';
 import {ExpensesScreen} from '../../features/expenses/screens/ExpensesScreen';
@@ -19,6 +20,7 @@ const HomeStack = createNativeStackNavigator();
 const ExpensesStack = createNativeStackNavigator();
 
 function HomeNavigator() {
+  useAppStore(s => s.themeVersion);
   return (
     <HomeStack.Navigator
       screenOptions={{
@@ -46,6 +48,7 @@ function HomeNavigator() {
 }
 
 function ExpensesNavigator() {
+  useAppStore(s => s.themeVersion);
   return (
     <ExpensesStack.Navigator
       screenOptions={{
@@ -77,6 +80,7 @@ function ExpensesNavigator() {
 
 export function AppNavigator() {
   const insets = useSafeAreaInsets();
+  useAppStore(s => s.themeVersion);
   return (
     <Tab.Navigator
       screenOptions={{

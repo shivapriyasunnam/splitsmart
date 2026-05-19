@@ -97,10 +97,15 @@ export async function sendViaBluetooth(): Promise<BluetoothSendResult> {
       return {success: false, error: 'Device not configured.'};
     }
 
+    // Include the sender's own member ID so the receiver can store the
+    // canonical partner member ID and avoid UUID mismatches.
+    const myMemberId = await getConfig<string>('my_member_id');
+
     const result = await createRawBluetoothSyncPackage(
       deviceConfig.deviceId,
       `pair_${deviceConfig.deviceId}`,
       btConfig.lastSentSequence,
+      myMemberId ?? undefined,
     );
 
     if (!result) {

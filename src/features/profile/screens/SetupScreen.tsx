@@ -63,6 +63,10 @@ export const SetupScreen: React.FC = () => {
         profile.myName, profile.myRole, profile.partnerName,
       );
 
+      // Persist my own member ID so the BT send can stamp it into sync packages
+      // and AppProvider can always find myMember by ID even after sync adds more rows.
+      await setConfig('my_member_id', myMember.id);
+
       setProfile(profile);
       setMyMember(myMember);
       setPartnerMember(partnerMember);
