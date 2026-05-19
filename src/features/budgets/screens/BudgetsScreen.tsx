@@ -163,15 +163,17 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
                       <Text style={styles.budgetCatName}>{row.category.name}</Text>
                     </View>
                     <View style={styles.budgetRight}>
-                      <Text style={styles.budgetSpent}>
-                        {formatAmount(row.spentAmount, currency)}
-                      </Text>
                       {row.hasBudget ? (
-                        <Text style={styles.budgetOf}>
-                          {' '}/ {formatAmount(row.budgetAmount, currency)}
-                        </Text>
+                        <>
+                          <Text style={styles.budgetSpent}>
+                            {formatAmount(row.spentAmount, currency)}
+                          </Text>
+                          <Text style={styles.budgetOf}>
+                            {' '}/ {formatAmount(row.budgetAmount, currency)}
+                          </Text>
+                        </>
                       ) : (
-                        <Text style={styles.noBudget}> No budget</Text>
+                        <Text style={styles.noBudget}>No budget set</Text>
                       )}
                     </View>
                   </View>
