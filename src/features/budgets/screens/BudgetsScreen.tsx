@@ -39,9 +39,13 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const budgets = await getBudgets(selectedMonth);
-      const spendMap = await getCategorySpend(selectedMonth);
-      const rows = computeBudgetRows(categories, budgets, spendMap);
+      const prevMonth = dayjs(selectedMonth).subtract(1, 'month').format('YYYY-MM');
+      const [budgets, prevBudgets, spendMap] = await Promise.all([
+        getBudgets(selectedMonth),
+        getBudgets(prevMonth),
+        getCategorySpend(selectedMonth),
+      ]);
+      const rows = computeBudgetRows(categories, budgets, spendMap, prevBudgets);
       setBudgetRows(rows);
     } finally {
       setLoading(false);
@@ -71,6 +75,17 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
     setSaving(true);
     try {
       await setBudget(selectedMonth, editingRow.category.id, amount);
+
+      // Propagate to next month as default if it has no explicit budget yet
+      const nextMonth = dayjs(selectedMonth).add(1, 'month').format('YYYY-MM');
+      const nextBudgets = await getBudgets(nextMonth);
+      const nextHasBudget = nextBudgets.some(
+        b => b.category_id === editingRow.category.id && !b.deleted_at,
+      );
+      if (!nextHasBudget) {
+        await setBudget(nextMonth, editingRow.category.id, amount);
+      }
+
       setEditingRow(null);
       setEditAmount('');
       await loadData();

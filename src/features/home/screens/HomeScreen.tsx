@@ -100,7 +100,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             <Text style={styles.subtitle}>{dayjs().format('MMMM YYYY')}</Text>
           </View>
           <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
-            <FontAwesome name="cog" size={20} color={Colors.text} />
+            <FontAwesome name="cog" size={25} color={Colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
     paddingBottom: 4,
