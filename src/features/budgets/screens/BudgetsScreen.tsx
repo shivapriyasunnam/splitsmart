@@ -20,13 +20,17 @@ import {getBudgets, setBudget, getCategorySpend} from '../../../db/repositories/
 import {computeBudgetRows, summarizeBudgets} from '../services/budgetService';
 import {formatAmount, parseAmountToMinor, formatAmountMajor} from '../../balances/services/balanceService';
 import {BudgetRow} from '../../../types';
+import WheelColorPicker from 'react-native-wheel-color-picker';
+import Icon from 'react-native-vector-icons/FontAwesome5';
+import {createCategory, getAllCategories, deleteCategory, updateCategory} from '../../../db/repositories/categoryRepository';
+import {v4 as uuidv4} from 'uuid';
 
 interface Props {
   navigation: any;
 }
 
 export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
-  const {categories, profile, themeVersion} = useAppStore();
+  const {categories, profile, themeVersion, setCategories} = useAppStore();
   const styles = useMemo(() => makeStyles(), [themeVersion]);
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format('YYYY-MM'));
   const [budgetRows, setBudgetRows] = useState<BudgetRow[]>([]);
@@ -34,6 +38,8 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
   const [editingRow, setEditingRow] = useState<BudgetRow | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const [editCategoryColor, setEditCategoryColor] = useState('');
 
   const currency = profile?.currency ?? 'CAD';
 
@@ -64,6 +70,19 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
   function openEdit(row: BudgetRow) {
     setEditingRow(row);
     setEditAmount(row.hasBudget ? formatAmountMajor(row.budgetAmount) : '');
+    setEditCategoryName(row.category.name);
+    setEditCategoryColor(row.category.color);
+  }
+
+  async function saveCategoryEdits() {
+    if (!editingRow) return;
+    await updateCategory(editingRow.category.id, {
+      name: editCategoryName.trim(),
+      color: editCategoryColor,
+    });
+    // Refresh categories in store
+    const updatedCats = await getAllCategories();
+    setCategories(updatedCats);
   }
 
   async function saveEdit() {
@@ -75,6 +94,7 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
     }
     setSaving(true);
     try {
+      await saveCategoryEdits();
       await setBudget(selectedMonth, editingRow.category.id, amount);
 
       // Propagate to next month as default if it has no explicit budget yet
@@ -95,6 +115,79 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
     }
   }
 
+  // Delete category handler
+  async function handleDeleteCategory() {
+    if (!editingRow) return;
+    Alert.alert(
+      'Delete Category',
+      `Are you sure you want to delete the category "${editingRow.category.name}"? This will hide it from all lists, but will not remove any associated expenses.`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Delete', style: 'destructive', onPress: async () => {
+            setSaving(true);
+            try {
+              await deleteCategory(editingRow.category.id);
+              const updatedCats = await getAllCategories();
+              setCategories(updatedCats);
+              setEditingRow(null);
+              await loadData();
+            } finally {
+              setSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  }
+
+  const createCategoryHandler = async () => {
+    const newCategory = await createCategory({
+      name: 'New Category',
+      color: Colors.primary,
+    });
+    store.setCategories(await getAllCategories());
+  };
+
+  // Add state for new category modal
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
+  // Open new category modal
+  function openNewCategory() {
+    setCreatingCategory(true);
+    setEditCategoryName('');
+    setEditCategoryColor(Colors.categoryColors[0]);
+    setEditAmount('');
+    setEditingRow(null);
+  }
+
+  // Save new category
+  async function saveNewCategory() {
+    if (!editCategoryName.trim()) {
+      Alert.alert('Required', 'Please enter a category name.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const newCat = await createCategory(editCategoryName.trim(), editCategoryColor, 'dot');
+      const amount = parseAmountToMinor(editAmount);
+      if (amount > 0) {
+        await setBudget(selectedMonth, newCat.id, amount);
+        const nextMonth = dayjs(selectedMonth).add(1, 'month').format('YYYY-MM');
+        await setBudget(nextMonth, newCat.id, amount);
+      }
+      const updatedCats = await getAllCategories();
+      setCategories(updatedCats);
+      await loadData();
+      setCreatingCategory(false);
+      setEditCategoryName('');
+      setEditCategoryColor(Colors.categoryColors[0]);
+      setEditAmount('');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Month Bar */}
@@ -107,16 +200,24 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
           <Text style={styles.monthArrowText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{dayjs(selectedMonth).format('MMMM YYYY')}</Text>
-        <TouchableOpacity
-          onPress={() => {
-            const next = dayjs(selectedMonth).add(1, 'month');
-            if (!next.isAfter(dayjs(), 'month')) {
-              setSelectedMonth(next.format('YYYY-MM'));
-            }
-          }}
-          style={styles.monthArrow}>
-          <Text style={styles.monthArrowText}>›</Text>
-        </TouchableOpacity>
+        <View style={styles.monthBarRight}>
+          <TouchableOpacity
+            onPress={() => {
+              const next = dayjs(selectedMonth).add(1, 'month');
+              if (!next.isAfter(dayjs(), 'month')) {
+                setSelectedMonth(next.format('YYYY-MM'));
+              }
+            }}
+            style={styles.monthArrow}>
+            <Text style={styles.monthArrowText}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={openNewCategory}
+            style={styles.addCategoryBtn}
+            accessibilityLabel="Add Category">
+            <Icon name="plus" size={14} color={Colors.textOnPrimary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -226,12 +327,38 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
               placeholder="0.00"
               autoFocus
             />
+            {/* Editable category name */}
+            <Input
+              label="Category Name"
+              value={editCategoryName}
+              onChangeText={setEditCategoryName}
+              style={{marginBottom: Spacing.sm}}
+            />
+            {/* Color picker */}
+            <Text style={[styles.modalSubtitle, {marginBottom: Spacing.xs}]}>Category Color</Text>
+            <View style={{height: 220, marginBottom: Spacing.md, justifyContent: 'center', alignItems: 'center'}}>
+              <WheelColorPicker
+                color={editCategoryColor}
+                onColorChangeComplete={setEditCategoryColor}
+                thumbStyle={{ borderWidth: 2, borderColor: Colors.primary }}
+                sliderHidden={false}
+                swatches={false}
+                style={{width: 180, height: 180}}
+              />
+            </View>
             <View style={styles.modalButtons}>
               <Button
                 title="Cancel"
                 variant="secondary"
                 onPress={() => setEditingRow(null)}
                 style={styles.modalBtn}
+              />
+              <Button
+                title="Delete"
+                variant="danger"
+                onPress={handleDeleteCategory}
+                style={[styles.modalBtn, {marginRight: 8}]}
+                loading={saving}
               />
               <Button
                 title="Save"
@@ -243,6 +370,66 @@ export const BudgetsScreen: React.FC<Props> = ({navigation}) => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      )}
+
+      {/* New Category Modal */}
+      {creatingCategory && (
+        <Modal
+          visible={creatingCategory}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCreatingCategory(false)}>
+          <KeyboardAvoidingView
+            style={styles.overlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View style={styles.modalBox}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>New Category</Text>
+              </View>
+              <Text style={styles.modalSubtitle}>Create a new category</Text>
+              <Divider style={{marginVertical: Spacing.sm}} />
+              <Input
+                label="Category Name"
+                value={editCategoryName}
+                onChangeText={setEditCategoryName}
+                style={{marginBottom: Spacing.sm}}
+              />
+              <Input
+                label="Budget Amount (optional)"
+                value={editAmount}
+                onChangeText={setEditAmount}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                style={{marginBottom: Spacing.sm}}
+              />
+              <Text style={[styles.modalSubtitle, {marginBottom: Spacing.xs}]}>Category Color</Text>
+              <View style={{height: 220, marginBottom: Spacing.md, justifyContent: 'center', alignItems: 'center'}}>
+                <WheelColorPicker
+                  color={editCategoryColor}
+                  onColorChangeComplete={setEditCategoryColor}
+                  thumbStyle={{ borderWidth: 2, borderColor: Colors.primary }}
+                  sliderHidden={false}
+                  swatches={false}
+                  style={{width: 180, height: 180}}
+                />
+              </View>
+              <View style={styles.modalButtons}>
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  onPress={() => setCreatingCategory(false)}
+                  style={styles.modalBtn}
+                />
+                <Button
+                  title="Save"
+                  onPress={saveNewCategory}
+                  loading={saving}
+                  style={styles.modalBtn}
+                />
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       )}
     </SafeAreaView>
   );
@@ -263,6 +450,16 @@ const makeStyles = () => StyleSheet.create({
   monthArrow: {padding: Spacing.sm},
   monthArrowText: {fontSize: 24, color: Colors.primary, fontWeight: '600'},
   monthLabel: {...Typography.h3, fontSize: 17},
+  monthBarRight: {flexDirection: 'row', alignItems: 'center', gap: Spacing.xs},
+  addCategoryBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: Spacing.xs,
+  },
   content: {padding: Spacing.md, paddingBottom: Spacing.sm},
   summaryRow: {flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md},
   summaryCard: {flex: 1, ...Shadows.sm},
@@ -297,4 +494,14 @@ const makeStyles = () => StyleSheet.create({
   modalSubtitle: {...Typography.bodySmall},
   modalButtons: {flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm},
   modalBtn: {flex: 1},
+  createCategoryBtn: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

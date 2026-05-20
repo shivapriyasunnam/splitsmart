@@ -1,3 +1,11 @@
+export async function deleteCategory(id: string): Promise<void> {
+  const db = await getDB();
+  const now = dayjs().toISOString();
+  await db.executeSql(
+    'UPDATE categories SET is_archived = 1, updated_at = ? WHERE id = ?',
+    [now, id],
+  );
+}
 import {v4 as uuidv4} from 'uuid';
 import dayjs from 'dayjs';
 import {getDB} from '../database';
