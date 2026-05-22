@@ -47,9 +47,7 @@ import {
   getBondedDevices,
   discoverDevices,
   requestBluetoothEnabled,
-  sendViaBluetooth,
-  receiveViaBluetooth,
-  cancelBluetoothAccept,
+  syncViaBluetooth,
   BluetoothDeviceInfo,
 } from '../../sync/services/bluetoothSyncService';
 
@@ -122,8 +120,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
   const [btPeerName, setBtPeerName] = useState<string | null>(null);
   const [btLastTransfer, setBtLastTransfer] = useState<string | null>(null);
   const [btLastError, setBtLastError] = useState<string | null>(null);
-  const [btSending, setBtSending] = useState(false);
-  const [btReceiving, setBtReceiving] = useState(false);
+  const [btSyncing, setBtSyncing] = useState(false);
   const [btDeviceModal, setBtDeviceModal] = useState(false);
   const [btDevices, setBtDevices] = useState<BluetoothDeviceInfo[]>([]);
   const [btDiscovering, setBtDiscovering] = useState(false);
@@ -415,78 +412,41 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
     setBtDeviceModal(false);
   }
 
-  async function handleBluetoothSend() {
+  async function handleBluetoothSync() {
     const permitted = await requestBtPermissionsAndroid();
     if (!permitted) {
-      Alert.alert('Permission Required', 'Bluetooth permissions are needed to send.');
+      Alert.alert('Permission Required', 'Bluetooth permissions are needed to sync.');
       return;
     }
-    setBtSending(true);
+    setBtSyncing(true);
     try {
-      const result = await sendViaBluetooth();
-      if (result.success && result.noChanges) {
-        Alert.alert('No Changes', 'No new local changes to send via Bluetooth.');
-      } else if (result.success) {
+      const result = await syncViaBluetooth(90_000);
+      if (result.success) {
         const cfg = await getBluetoothSyncConfig();
         setBtLastTransfer(cfg.lastTransferAt);
         setBtLastError(null);
-        Alert.alert('Sent', 'Changes sent and acknowledged by partner device.');
-      } else {
-        setBtLastError(result.error ?? null);
-        Alert.alert('Send Failed', result.error ?? 'Bluetooth send failed.');
-      }
-    } finally {
-      setBtSending(false);
-    }
-  }
 
-  async function handleBluetoothReceive() {
-    const permitted = await requestBtPermissionsAndroid();
-    if (!permitted) {
-      Alert.alert('Permission Required', 'Bluetooth permissions are needed to receive.');
-      return;
-    }
-    Alert.alert(
-      'Waiting for sender…',
-      'This device is now listening. Ask your partner to send from their device. Tap Cancel to stop.',
-      [
-        {
-          text: 'Cancel',
-          onPress: () => {
-            cancelBluetoothAccept().catch(() => {});
-            setBtReceiving(false);
-          },
-        },
-      ],
-      {cancelable: false},
-    );
-    setBtReceiving(true);
-    try {
-      const result = await receiveViaBluetooth(120_000);
-      if (result.success && result.duplicate) {
-        Alert.alert('Already Applied', 'This package was already imported — no duplicates created.');
-      } else if (result.success) {
-        setBtLastTransfer(dayjs().toISOString());
-        setBtLastError(null);
-        const s = await getConfig<any>('sync_status');
-        if (s) store.setSyncStatus(s);
-
-        // Refresh partner member in store now that canonical_partner_member_id may
-        // have been written by the merge step during this receive.
+        // Refresh partner member in store (canonical_partner_member_id may have been written).
         const canonicalPartnerId = await getConfig<string>('canonical_partner_member_id');
         if (canonicalPartnerId) {
           const updatedMembers = await getMembers();
           const partner = updatedMembers.find(m => m.id === canonicalPartnerId);
           if (partner) store.setPartnerMember(partner);
         }
+        const s = await getConfig<any>('sync_status');
+        if (s) store.setSyncStatus(s);
 
-        Alert.alert('Received', `Imported ${result.imported ?? 0} package(s) from partner.`);
+        const summary = [
+          result.sentChanges ? 'Sent your changes' : 'No local changes to send',
+          result.importedChanges ? 'Imported partner changes' : 'No new changes from partner',
+        ].join('\n');
+        Alert.alert('Sync Complete', summary);
       } else {
         setBtLastError(result.error ?? null);
-        Alert.alert('Receive Failed', result.error ?? 'Bluetooth receive failed.');
+        Alert.alert('Sync Failed', result.error ?? 'Bluetooth sync failed.');
       }
     } finally {
-      setBtReceiving(false);
+      setBtSyncing(false);
     }
   }
 
@@ -794,18 +754,10 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
             style={styles.syncBtn}
           />
           <Button
-            title="Send via Bluetooth"
-            onPress={handleBluetoothSend}
-            loading={btSending}
-            disabled={btSending || btReceiving || !btPeerAddress}
-            style={styles.syncBtn}
-          />
-          <Button
-            title="Receive via Bluetooth"
-            variant="secondary"
-            onPress={handleBluetoothReceive}
-            loading={btReceiving}
-            disabled={btSending || btReceiving}
+            title={btSyncing ? 'Syncing…' : 'Sync Changes'}
+            onPress={handleBluetoothSync}
+            loading={btSyncing}
+            disabled={btSyncing || !btPeerAddress}
             style={styles.syncBtn}
           />
           <Divider />

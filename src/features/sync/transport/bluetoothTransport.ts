@@ -2,43 +2,55 @@
  * Bluetooth Classic transport adapter.
  *
  * Uses react-native-bluetooth-classic RFCOMM sockets.
- * Protocol (single-line):
- *   Sender → Receiver: one JSON line containing the sync package
- *   Receiver → Sender: one JSON ACK line
+ *
+ * Wire format:
+ *   Every message is a single JSON line terminated with '\n'.
+ *   Senders open a fresh socket per message, write the line, and disconnect.
+ *   Receivers run an always-on accept loop and process one connection at a
+ *   time (see bluetoothListener.ts).
  *
  * Read strategy:
- *   - Receiver (server/accept side): event-driven via onDataReceived — fires reliably
- *     for server-accepted connections.
- *   - Sender (client/connectToDevice side): polls device.read() — onDataReceived
- *     does NOT fire for client-initiated connections in react-native-bluetooth-classic,
- *     so event-based reading always times out on the sender.
+ *   - Server (accept side): event-driven via onDataReceived plus a polled
+ *     device.read() fallback — onDataReceived is unreliable on some Android
+ *     versions even for accept-side connections.
+ *   - Client (connectToDevice side): write-only. onDataReceived does NOT fire
+ *     for client-initiated connections in react-native-bluetooth-classic, and
+ *     device.read() returns empty because the library's background thread
+ *     consumes the stream bytes first. The protocol works around this by
+ *     never reading on the client side — responses come back via the other
+ *     device connecting to us.
  */
 import RNBluetoothClassic, {BluetoothDevice} from 'react-native-bluetooth-classic';
 import {SyncTransport, OutboundTransferResult, InboundPayload} from './syncTransport';
 
-const SERVICE_NAME = 'SplitSmartSync';
+export const SERVICE_NAME = 'SplitSmartSync';
 // Standard Bluetooth Serial Port Profile UUID.
 // connectToDevice() defaults to this UUID on Android; accept() must use the
 // same UUID or the remote connection will be refused with
 // "read failed, socket might closed or timeout, read ret: -1".
-const SPP_UUID = '00001101-0000-1000-8000-00805F9B34FB';
-const CONNECT_TIMEOUT_MS = 15_000;
+export const SPP_UUID = '00001101-0000-1000-8000-00805F9B34FB';
+// Each connectToDevice attempt is capped at 8s. Budget arithmetic for the
+// listener-based bidirectional flow:
+//   4 attempts × 8s + 3 retry waits × 2s = 38s max before giving up.
+// This must stay well under the initiator's syncViaBluetooth timeout (90s)
+// so the receiver's reply retries don't outlive the sender's patience.
+export const CONNECT_TIMEOUT_MS = 8_000;
 // How many times to retry connectToDevice before giving up.
 // On physical Android devices the receiver's SDP registration takes 1-3s to
 // propagate after accept() is called — the first attempt often fails with
 // "read failed, socket might closed or timeout, read ret: -1" for exactly
 // this reason. Retrying after a short delay reliably resolves it.
-const MAX_CONNECT_RETRIES = 4;
-const CONNECT_RETRY_DELAY_MS = 2_000;
+export const MAX_CONNECT_RETRIES = 4;
+export const CONNECT_RETRY_DELAY_MS = 2_000;
 // How long the receiver waits for the sender's data line after connecting.
-const READ_TIMEOUT_MS = 30_000;
+export const READ_TIMEOUT_MS = 30_000;
 // Delay after write() before disconnect() on the sender side.
 // write() returns as soon as bytes enter the OS RFCOMM buffer, NOT after they
 // are actually transmitted over the air. Disconnecting immediately causes
 // Android to close the socket before the bytes leave the device, so the
 // receiver's accept() returns but onDataReceived never fires (read timeout).
 // Waiting gives the radio layer time to flush the buffer.
-const WRITE_FLUSH_DELAY_MS = 1_500;
+export const WRITE_FLUSH_DELAY_MS = 1_500;
 
 export interface BluetoothAck {
   status: 'ok' | 'error';
@@ -50,6 +62,21 @@ export interface BluetoothDeviceInfo {
   address: string;
   name: string;
   bonded?: boolean;
+}
+
+/**
+ * Envelope used by the listener-based bidirectional protocol. Every wire
+ * message is one of these, serialized as a single JSON line.
+ *
+ *  - `sync_data`: carries a sync package. If `respondWith` is true, the
+ *    receiver should send back its own sync_data with `respondWith: false`.
+ */
+export interface BluetoothEnvelope {
+  type: 'sync_data';
+  from: string;            // Sender's display name (for toast on receiver)
+  deviceId: string;        // Sender's app deviceId (for logging / future use)
+  respondWith: boolean;    // True if receiver should send back their own package
+  package: unknown;        // Parsed SyncPackage object (validated downstream)
 }
 
 // ─── Permission helpers (Android only) ───────────────────────────────────────
@@ -101,7 +128,7 @@ export async function requestBluetoothEnabled(): Promise<boolean> {
  * The caller is responsible for attaching onDataReceived to fill buf BEFORE
  * calling this, so there is zero window in which arriving bytes can be missed.
  */
-function waitForLineInBuf(
+export function waitForLine(
   buf: {data: string},
   timeoutMs: number,
 ): Promise<string> {
@@ -145,84 +172,89 @@ function waitForLineInBuf(
   });
 }
 
-// ─── BluetoothTransport ───────────────────────────────────────────────────────
+// ─── BluetoothTransport (legacy one-way send, used by sendViaBluetooth) ──────
 
 export class BluetoothTransport implements SyncTransport {
   readonly id = 'bluetooth' as const;
 
   constructor(private readonly peerAddress: string) {}
 
-  /**
-   * Sender flow:
-   * 1. Connect to peer
-   * 2. Write payload as a single JSON line
-   * 3. Disconnect
-   *
-   * No ACK round-trip: if write() succeeds without throwing, the data is in
-   * the receiver's RFCOMM input buffer — the OS guarantees delivery over the
-   * already-established socket. Attempting to read the ACK is unreliable
-   * because onDataReceived does not fire for client-initiated connections in
-   * react-native-bluetooth-classic, and device.read() returns empty because
-   * the library's background thread has already consumed the stream bytes.
-   * Duplicates are handled by hasPackageBeenApplied deduplication on the
-   * receiver, so re-sending on the next sync is safe.
-   */
   async sendPackage(args: {
     filename: string;
     encryptedPayload: string;
     packageId: string;
   }): Promise<OutboundTransferResult> {
-    let lastError = 'Bluetooth send failed';
-
-    for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
-      let device: BluetoothDevice | null = null;
-      try {
-        device = await Promise.race([
-          RNBluetoothClassic.connectToDevice(this.peerAddress, {uuid: SPP_UUID, charset: 'utf-8', secure_socket: false}),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Connection timed out')), CONNECT_TIMEOUT_MS),
-          ),
-        ]);
-
-        // Android RFCOMM sockets need a brief moment to fully settle after the
-        // connectToDevice promise resolves before writes will succeed.
-        await new Promise<void>(r => setTimeout(r, 500));
-
-        await device.write(args.encryptedPayload + '\n');
-
-        // Wait for the RFCOMM buffer to actually transmit before disconnecting.
-        // write() resolves when bytes enter the OS buffer, not when they leave
-        // the radio. Disconnecting immediately drops the socket before the
-        // receiver sees any data.
-        await new Promise<void>(r => setTimeout(r, WRITE_FLUSH_DELAY_MS));
-
-        return {success: true, remoteAcked: true};
-      } catch (err: any) {
-        lastError = err.message ?? 'Bluetooth send failed';
-        if (attempt < MAX_CONNECT_RETRIES) {
-          // Wait before retrying — gives the receiver's SDP record time to propagate
-          await new Promise<void>(r => setTimeout(r, CONNECT_RETRY_DELAY_MS));
-        }
-      } finally {
-        if (device) {
-          try { await device.disconnect(); } catch { /* ignore */ }
-        }
-      }
-    }
-
-    return {success: false, remoteAcked: false, error: lastError};
+    const ok = await sendLine(this.peerAddress, args.encryptedPayload);
+    return ok.success
+      ? {success: true, remoteAcked: true}
+      : {success: false, remoteAcked: false, error: ok.error};
   }
 
-  /**
-   * Not used for the Bluetooth transport — receiving is an active listen operation,
-   * not a passive poll. Use `acceptInboundPackage` on `BluetoothReceiver` instead.
-   */
   async receivePackages(): Promise<InboundPayload[]> {
     return [];
   }
 }
 
-// ─── Receiver side ────────────────────────────────────────────────────────────
+/**
+ * Connect to `peerAddress` and write a single line terminated with '\n'.
+ * Retries on transient errors. Disconnects after WRITE_FLUSH_DELAY_MS so the
+ * radio has time to actually transmit before the socket closes.
+ */
+export async function sendLine(
+  peerAddress: string,
+  line: string,
+): Promise<{success: true} | {success: false; error: string}> {
+  let lastError = 'Bluetooth send failed';
+
+  for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
+    let device: BluetoothDevice | null = null;
+    try {
+      device = await Promise.race([
+        RNBluetoothClassic.connectToDevice(peerAddress, {uuid: SPP_UUID, charset: 'utf-8', secure_socket: false}),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Connection timed out')), CONNECT_TIMEOUT_MS),
+        ),
+      ]);
+
+      // Android RFCOMM sockets need a brief moment to fully settle after the
+      // connectToDevice promise resolves before writes will succeed.
+      await new Promise<void>(r => setTimeout(r, 500));
+
+      await device.write(line + '\n');
+
+      // Wait for the RFCOMM buffer to actually transmit before disconnecting.
+      // write() resolves when bytes enter the OS buffer, not when they leave
+      // the radio. Disconnecting immediately drops the socket before the
+      // receiver sees any data.
+      await new Promise<void>(r => setTimeout(r, WRITE_FLUSH_DELAY_MS));
+
+      return {success: true};
+    } catch (err: any) {
+      lastError = err.message ?? 'Bluetooth send failed';
+      if (attempt < MAX_CONNECT_RETRIES) {
+        await new Promise<void>(r => setTimeout(r, CONNECT_RETRY_DELAY_MS));
+      }
+    } finally {
+      if (device) {
+        try { await device.disconnect(); } catch { /* ignore */ }
+      }
+    }
+  }
+
+  return {success: false, error: lastError};
+}
+
+/**
+ * Convenience wrapper: JSON.stringify an envelope and send it as one line.
+ */
+export async function sendEnvelope(
+  peerAddress: string,
+  envelope: BluetoothEnvelope,
+): Promise<{success: true} | {success: false; error: string}> {
+  return sendLine(peerAddress, JSON.stringify(envelope));
+}
+
+// ─── Receiver side (legacy single-package accept, used by receiveViaBluetooth)
 
 export interface ReceivedPackage {
   payload: InboundPayload;
@@ -232,26 +264,22 @@ export interface ReceivedPackage {
 }
 
 /**
- * Enter server/accept mode.
+ * Enter server/accept mode for exactly one connection.
  * Returns a single ReceivedPackage when a sender connects and delivers a package.
- * The caller must call pkg.ack() after successful merge and pkg.disconnect() when done.
+ * The caller must call pkg.disconnect() when done.
+ *
+ * Used by the legacy one-shot receive path. The new bidirectional flow uses
+ * the always-on listener (see bluetoothListener.ts).
  */
 export async function acceptInboundPackage(
   timeoutMs = 120_000,
 ): Promise<ReceivedPackage> {
-  // Cancel any zombie accept socket left over from a previous timed-out or
-  // abandoned receive session. Without this cleanup, a sender calling
-  // connectToDevice() connects to the stale native listener instead of the
-  // newly registered one, so the new accept() promise never resolves and the
-  // receiver waits for the full 120 s before giving up.
   await RNBluetoothClassic.cancelAccept().catch(() => {});
 
   const device: BluetoothDevice = await Promise.race([
     RNBluetoothClassic.accept({serviceName: SERVICE_NAME, uuid: SPP_UUID, charset: 'utf-8', secure_socket: false}),
     new Promise<never>((_, reject) =>
       setTimeout(() => {
-        // Cancel the native accept so it does not linger as a new zombie
-        // after this Promise.race has already rejected on the JS side.
         RNBluetoothClassic.cancelAccept().catch(() => {});
         reject(new Error('No incoming connection within timeout'));
       }, timeoutMs),
@@ -260,17 +288,10 @@ export async function acceptInboundPackage(
 
   const readBuf = {data: ''};
 
-  // Attach the event listener immediately after accept() so any bytes that
-  // arrive before waitForLineInBuf() starts polling are captured.
   const subscription = device.onDataReceived((event: {data: string}) => {
     readBuf.data += event.data;
   });
 
-  // onDataReceived does not fire reliably on all Android versions / devices,
-  // even for server-accepted (accept-side) connections — same root cause as
-  // the sender side. Poll device.read() as a fallback. Both onDataReceived and
-  // device.read() draw from the same native read buffer, so whichever delivers
-  // first wins and the other returns empty — no double-counting.
   const readFallbackInterval = setInterval(() => {
     (device as any).read().then((chunk: string | null | undefined) => {
       if (chunk && chunk.length > 0) {
@@ -280,7 +301,7 @@ export async function acceptInboundPackage(
   }, 100);
 
   try {
-    const payloadLine = await waitForLineInBuf(readBuf, READ_TIMEOUT_MS);
+    const payloadLine = await waitForLine(readBuf, READ_TIMEOUT_MS);
     clearInterval(readFallbackInterval);
     const encryptedPayload = payloadLine.trim();
 
