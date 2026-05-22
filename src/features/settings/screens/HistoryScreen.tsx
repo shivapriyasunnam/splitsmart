@@ -120,7 +120,7 @@ export const HistoryScreen: React.FC<Props> = ({onBack, navigation}) => {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={goBack}>
-          <Text style={styles.backLink}>← Back</Text>
+          <Text style={styles.backLink}>‹ Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Sync History</Text>
         <View style={styles.headerSpacer} />

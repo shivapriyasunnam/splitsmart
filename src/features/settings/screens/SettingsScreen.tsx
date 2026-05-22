@@ -650,11 +650,11 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
             <Text style={styles.settingKey}>Partner's Name</Text>
             <Text style={styles.settingValue}>{profile?.partnerName ?? '—'}</Text>
           </View>
-          <Divider />
+          {/* <Divider />
           <View style={styles.row}>
             <Text style={styles.settingKey}>Your Role</Text>
             <Text style={styles.settingValue}>Person {profile?.myRole ?? '—'}</Text>
-          </View>
+          </View> */}
           <Divider />
           <TouchableOpacity style={styles.row} onPress={() => setCurrencyModal(true)}>
             <Text style={styles.settingKey}>Currency</Text>
