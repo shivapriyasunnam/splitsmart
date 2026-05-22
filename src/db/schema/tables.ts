@@ -115,6 +115,25 @@ export const CREATE_APP_CONFIG_TABLE = `
   );
 `;
 
+// Mirror of change_log entries that arrived from a partner via sync. Kept
+// separate from change_log so the local sync cursor (local_sequence) doesn't
+// pick them up and bounce them back to the partner. Read-only for the user —
+// powers the Sync History screen alongside the local change_log.
+export const CREATE_INBOUND_AUDIT_LOG_TABLE = `
+  CREATE TABLE IF NOT EXISTS inbound_audit_log (
+    id TEXT PRIMARY KEY NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    operation TEXT NOT NULL CHECK(operation IN ('upsert','delete')),
+    record_json TEXT NOT NULL,
+    source_device_id TEXT NOT NULL,
+    source_member_id TEXT,
+    package_id TEXT NOT NULL,
+    occurred_at TEXT,
+    applied_at TEXT NOT NULL
+  );
+`;
+
 export const CREATE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);`,
   `CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_id);`,
@@ -122,6 +141,7 @@ export const CREATE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_budgets_month ON budgets(month_key);`,
   `CREATE INDEX IF NOT EXISTS idx_change_log_seq ON change_log(local_sequence);`,
   `CREATE INDEX IF NOT EXISTS idx_change_log_uploaded ON change_log(uploaded_at);`,
+  `CREATE INDEX IF NOT EXISTS idx_inbound_audit_applied ON inbound_audit_log(applied_at);`,
 ];
 
 export const ALL_TABLES = [
@@ -134,4 +154,5 @@ export const ALL_TABLES = [
   CREATE_CHANGE_LOG_TABLE,
   CREATE_SYNC_PACKAGES_APPLIED_TABLE,
   CREATE_APP_CONFIG_TABLE,
+  CREATE_INBOUND_AUDIT_LOG_TABLE,
 ];

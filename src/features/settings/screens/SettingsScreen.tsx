@@ -38,6 +38,7 @@ import {validateRegexPattern} from '../../categories/services/categorizationServ
 import {CategoryRule, Category, Profile, DriveConfig} from '../../../types';
 import {getMembers} from '../../../db/repositories/memberRepository';
 import {pickJsonFile} from '../services/filePicker';
+import {HistoryScreen} from './HistoryScreen';
 import {exportBackup, importBackup, saveBackupFile} from '../services/backupService';
 import {formatAmount} from '../../balances/services/balanceService';
 import {hashPassphrase} from '../../sync/crypto/encryptionService';
@@ -63,7 +64,7 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
 
   const [rules, setRules] = useState<CategoryRule[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
-  const [section, setSection] = useState<'main' | 'rules' | 'profile'>('main');
+  const [section, setSection] = useState<'main' | 'rules' | 'profile' | 'history'>('main');
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [driveConnecting, setDriveConnecting] = useState(false);
@@ -515,6 +516,10 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
     ]);
   }
 
+  if (section === 'history') {
+    return <HistoryScreen onBack={() => setSection('main')} />;
+  }
+
   if (section === 'rules') {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -773,6 +778,11 @@ export const SettingsScreen: React.FC<Props> = ({navigation}) => {
               <Text style={styles.errorText}>BT error: {btLastError}</Text>
             </>
           )}
+          <Divider />
+          <TouchableOpacity style={styles.navRow} onPress={() => setSection('history')}>
+            <Text style={styles.settingKey}>View Sync History</Text>
+            <Text style={styles.navChevron}>›</Text>
+          </TouchableOpacity>
         </Card>
 
         {/* Device Picker Modal */}

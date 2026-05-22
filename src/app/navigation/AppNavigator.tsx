@@ -14,6 +14,7 @@ import {BalancesScreen} from '../../features/balances/screens/BalancesScreen';
 import {BudgetsScreen} from '../../features/budgets/screens/BudgetsScreen';
 import {InsightsScreen} from '../../features/insights/screens/InsightsScreen';
 import {SettingsScreen} from '../../features/settings/screens/SettingsScreen';
+import {HistoryScreen} from '../../features/settings/screens/HistoryScreen';
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -36,6 +37,11 @@ function HomeNavigator() {
       <HomeStack.Screen
         name="Settings"
         component={SettingsScreen}
+        options={{headerShown: false}}
+      />
+      <HomeStack.Screen
+        name="History"
+        component={HistoryScreen}
         options={{headerShown: false}}
       />
       <HomeStack.Screen

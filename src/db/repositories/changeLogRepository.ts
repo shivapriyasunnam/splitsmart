@@ -105,6 +105,44 @@ export async function getChangeLogRange(
 }
 
 /**
+ * Queue an inbound audit log INSERT inside a transaction callback.
+ *
+ * Mirrors the change_log signature but writes to inbound_audit_log. Use this
+ * from mergeService when applying remote changes — it preserves the audit
+ * trail without contaminating the local sync cursor.
+ *
+ * Like writeChangeLogInTx, this MUST be called synchronously (no await) from
+ * inside a non-async transaction callback so the INSERT is queued before the
+ * transaction commits.
+ */
+export function writeInboundAuditLogInTx(
+  tx: any,
+  args: {
+    entityType: EntityType;
+    entityId: string;
+    operation: ChangeOperation;
+    record: object;
+    sourceDeviceId: string;
+    sourceMemberId: string | null;
+    packageId: string;
+    occurredAt: string | null;
+  },
+): void {
+  const id = uuidv4();
+  const appliedAt = dayjs().toISOString();
+  tx.executeSql(
+    `INSERT INTO inbound_audit_log
+       (id, entity_type, entity_id, operation, record_json,
+        source_device_id, source_member_id, package_id, occurred_at, applied_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id, args.entityType, args.entityId, args.operation, JSON.stringify(args.record),
+      args.sourceDeviceId, args.sourceMemberId, args.packageId, args.occurredAt, appliedAt,
+    ],
+  );
+}
+
+/**
  * Get all change log entries with local_sequence > afterSequence.
  * Used by Bluetooth sync to build packages from a cursor, without touching Drive upload state.
  */

@@ -5,6 +5,7 @@ import {
   recordPackageApplied,
 } from '../../../db/repositories/syncRepository';
 import {setConfig} from '../../../db/repositories/configRepository';
+import {writeInboundAuditLogInTx} from '../../../db/repositories/changeLogRepository';
 import dayjs from 'dayjs';
 
 // react-native-sqlite-storage does NOT await async transaction callbacks —
@@ -44,20 +45,37 @@ export async function mergePackage(pkg: SyncPackage): Promise<void> {
   });
 
   // Phase 2: write everything in a synchronous (non-async) transaction callback.
-  if (statements.length > 0) {
+  // We also queue inbound_audit_log inserts for EVERY change in the package —
+  // even ones that mergeService decided to skip (out-of-date / no-op) — so the
+  // Sync History screen can show "partner edited X" regardless of whether it
+  // beat our newer local edit.
+  if (statements.length > 0 || pkg.changes.length > 0) {
     try {
       await db.transaction(tx => {
         for (const {sql, args} of statements) {
           tx.executeSql(sql, args);
         }
+        for (const change of pkg.changes) {
+          const rec = change.record as Record<string, any>;
+          writeInboundAuditLogInTx(tx, {
+            entityType: change.entityType,
+            entityId: change.entityId,
+            operation: change.operation,
+            record: rec,
+            sourceDeviceId: pkg.sourceDeviceId,
+            sourceMemberId: pkg.senderMemberId ?? null,
+            packageId: pkg.packageId,
+            occurredAt: rec?.updated_at ?? rec?.deleted_at ?? null,
+          });
+        }
       });
-      console.log(`[mergePackage] transaction committed, ${statements.length} statement(s) written`);
+      console.log(`[mergePackage] transaction committed, ${statements.length} write(s) + ${pkg.changes.length} audit row(s)`);
     } catch (txErr: any) {
       console.error('[mergePackage] transaction FAILED:', txErr?.message ?? txErr);
       throw txErr;
     }
   } else {
-    console.log('[mergePackage] no statements to execute — data already up-to-date or empty changes');
+    console.log('[mergePackage] no changes to process — empty package');
   }
 
   await recordPackageApplied(pkg.packageId, pkg.sourceDeviceId);

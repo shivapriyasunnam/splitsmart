@@ -100,9 +100,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             <Text style={styles.greeting}>Hey, {profile?.myName ?? 'there'} 👋</Text>
             <Text style={styles.subtitle}>{dayjs().format('MMMM YYYY')}</Text>
           </View>
-          <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
-            <FontAwesome name="cog" size={25} color={Colors.textMuted} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.navigate('History')}>
+              <FontAwesome name="history" size={22} color={Colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.navigate('Settings')}>
+              <FontAwesome name="cog" size={25} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {loading ? <LoadingState /> : (
@@ -271,6 +276,8 @@ const makeStyles = () => StyleSheet.create({
   greeting: {...Typography.h2, color: Colors.primary},
   subtitle: {...Typography.body, color: Colors.textMuted},
   settingsBtn: {padding: Spacing.sm},
+  headerActions: {flexDirection: 'row', alignItems: 'center'},
+  headerIconBtn: {padding: Spacing.sm},
   primaryCard: {
     marginHorizontal: Spacing.md,
     marginTop: Spacing.sm,
