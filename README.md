@@ -1,97 +1,207 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# SplitSmart
 
-# Getting Started
+A local-first expense-splitting app for two people, built with React Native. No backend server, no account system — expenses, budgets, and balances live on-device in SQLite and sync privately between two phones via Google Drive or Bluetooth.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## Features
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+- **Expense tracking** — add, edit, and delete shared expenses with flexible split types (equal, fixed amount, percentage)
+- **Auto-categorization** — regex rules automatically suggest a category from the expense title; rules are user-editable and run in priority order
+- **Balances** — real-time net balance calculation showing who owes whom and by how much; supports recording settlements
+- **Budgets** — per-category monthly budgets with spent / remaining / over-budget tracking
+- **Insights** — bar and pie charts showing spend vs. budget by category for any selected month
+- **Google Drive sync** — manual upload/sync via a shared Drive folder; all packages are AES-encrypted before leaving the device
+- **Bluetooth sync** — direct device-to-device sync over Bluetooth Classic when both phones are nearby
+- **Background upload** — best-effort daily job (WorkManager on Android) uploads unsynced changes and a full encrypted backup
+- **Sync history** — log of every inbound and outbound sync operation with timestamps and package IDs
+- **Fully offline** — all features work without internet; sync is always user-triggered or a background best-effort
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
 
-```sh
-# Using npm
+## Tech Stack
+
+| Layer | Choice |
+|---|---|
+| Framework | React Native 0.85 (TypeScript) |
+| Local storage | SQLite via `react-native-sqlite-storage` |
+| State management | Zustand |
+| Navigation | React Navigation (bottom tabs + native stack) |
+| Forms & validation | React Hook Form + Zod |
+| Encryption | CryptoJS — AES-256-CBC + PBKDF2 (100k iterations, SHA-256) |
+| Charts | react-native-chart-kit + react-native-svg |
+| Animations | Lottie |
+| Auth | Google Sign-In for Drive OAuth only |
+| Background jobs | react-native-background-fetch (WorkManager bridge on Android) |
+| Bluetooth | react-native-bluetooth-classic |
+
+---
+
+## Architecture
+
+### Local-first data model
+
+Each device owns a full SQLite database. All writes produce a row in a `change_log` table that captures the entity type, operation, and full record snapshot. This log is the source of truth for sync — nothing is sent until the user (or the background job) explicitly packages and uploads it.
+
+### Sync pipeline
+
+The sync flow is transport-agnostic. A `SyncTransport` interface abstracts delivery:
+
+```
+change_log  →  SyncPackageService  →  encrypt  →  Transport (Drive or BT)
+                                                          ↓
+                                     decrypt  →  Zod validate  →  MergeService
+```
+
+1. **Build** — unsynced `change_log` rows are bundled into a `SyncPackage` with a UUID, device ID, and sequence range.
+2. **Encrypt** — the package JSON is encrypted with AES-256-CBC using a key derived from the shared passphrase via PBKDF2.
+3. **Deliver** — the ciphertext is uploaded to the device's subfolder in the shared Drive folder, or sent over a Bluetooth socket.
+4. **Receive** — the partner device fetches, decrypts, and Zod-validates the package before touching the database.
+5. **Merge** — a deterministic last-write-wins merge by `updated_at` applies changes; `deleted_at` soft-deletes win over older updates. Already-applied package IDs are deduped via `sync_packages_applied`.
+
+### Drive folder layout
+
+```
+SplitSmart/
+  devices/
+    device_A/
+      changes/     ← incremental sync packages from A
+      backups/     ← full encrypted snapshots from A
+    device_B/
+      changes/
+      backups/
+```
+
+### Balance calculation
+
+For each expense the app derives each member's share from the split rule, then aggregates:
+
+```
+net = total_paid_by_me - my_share
+net > 0  →  partner owes you
+net < 0  →  you owe partner
+```
+
+Settlements are additive and reduce the open balance.
+
+---
+
+## Project Structure
+
+```
+src/
+  app/
+    navigation/       # AppNavigator, tab and stack setup
+    providers/        # AppProvider, Zustand store root
+    theme/            # colours, typography, spacing tokens
+  components/         # shared UI components
+  db/
+    migrations/       # schema migration runner
+    repositories/     # one file per table (expenses, budgets, members, …)
+    schema/           # CREATE TABLE definitions
+  features/
+    auth/             # login screen, hardcoded user config
+    balances/         # balance screen + balance service
+    budgets/          # budgets screen + budget service
+    categories/       # auto-categorization service
+    expenses/         # expense list + add/edit screen
+    insights/         # charts screen
+    settings/         # settings screen, backup/restore, sync history
+    sync/
+      crypto/         # AES encrypt/decrypt, PBKDF2 key derivation
+      drive/          # Drive REST API operations
+      merge/          # deterministic merge logic
+      jobs/           # end-of-day background upload job
+      services/       # sync orchestrator, package builder, BT listener
+      transport/      # SyncTransport interface, Drive + BT implementations
+  types/              # shared TypeScript types
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node >= 22
+- Java 17 (`brew install openjdk@17`)
+- Android Studio with SDK Platform 34 + Build-Tools 34
+- Environment variables in `~/.zshrc`:
+
+```bash
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+```
+
+### Install dependencies
+
+```bash
+npm install
+```
+
+### Configure users
+
+Edit `src/features/auth/constants/users.ts` to set your own display names, usernames, passwords, and shared encryption passphrase before use.
+
+### Run on Android
+
+```bash
+# Terminal 1 — Metro bundler
 npm start
 
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+# Terminal 2 — build and install
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+### Run on iOS
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
+```bash
 bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
 bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+### Google Drive sync setup
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com) and enable the **Google Drive API**.
+2. Create an OAuth 2.0 client ID for Android (package name: `com.splitsmart`).
+3. Get the SHA-1 fingerprint: `cd android && ./gradlew signingReport`
+4. Add the SHA-1 to your OAuth client, download `google-services.json`, and place it at `android/app/google-services.json`.
 
-## Step 3: Modify your app
+---
 
-Now that you have successfully run the app, let's make changes!
+## Tests
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+```bash
+# All unit tests
+npm test
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+# Individual service tests
+npx jest balanceService         # balance math
+npx jest categorizationService  # auto-categorization regex
+npx jest budgetService          # budget rows + summary
+npx jest encryptionService      # AES encrypt/decrypt round-trip
+npx jest mergeService           # sync merge logic (DB mocked)
+npx jest eodSequence            # upload-before-backup ordering
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+# With coverage
+npx jest --coverage
+```
 
-## Congratulations! :tada:
+---
 
-You've successfully run and modified your React Native App. :partying_face:
+## Building an APK
 
-### Now what?
+```bash
+# Debug
+cd android && ./gradlew assembleDebug
+# Output: android/app/build/outputs/apk/debug/app-debug.apk
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+# Release
+cd android && ./gradlew assembleRelease
+# Output: android/app/build/outputs/apk/release/app-release.apk
 
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+# Install directly on a connected device
+adb install android/app/build/outputs/apk/debug/app-debug.apk
+```
